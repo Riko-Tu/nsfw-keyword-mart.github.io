@@ -48,8 +48,8 @@ class Interrogator:
 
             # filter tags
             if (
-                    c >= threshold
-                    and t not in exclude_tags
+                c >= threshold
+                and t not in exclude_tags
             )
         }
 
@@ -128,7 +128,7 @@ class WaifuDiffusionInterrogator(Interrogator):
         # only one of these packages should be installed at a time in any one environment
         # https://onnxruntime.ai/docs/get-started/with-python.html#install-onnx-runtime
         # TODO: remove old package when the environment changes?
-        from mikazuki.utils import is_installed, run_pip
+        from mikazuki.launch_utils import is_installed, run_pip
         if not is_installed('onnxruntime'):
             package = os.environ.get(
                 'ONNXRUNTIME_PACKAGE',
@@ -201,6 +201,39 @@ class WaifuDiffusionInterrogator(Interrogator):
         return ratings, tags
 
 
+available_interrogators = {
+    'wd-convnext-v3': WaifuDiffusionInterrogator(
+        'wd-convnext-v3',
+        repo_id='SmilingWolf/wd-convnext-tagger-v3',
+    ),
+    'wd-swinv2-v3': WaifuDiffusionInterrogator(
+        'wd-swinv2-v3',
+        repo_id='SmilingWolf/wd-swinv2-tagger-v3',
+    ),
+    'wd-vit-v3': WaifuDiffusionInterrogator(
+        'wd14-vit-v3',
+        repo_id='SmilingWolf/wd-vit-tagger-v3',
+    ),
+    'wd14-convnextv2-v2': WaifuDiffusionInterrogator(
+        'wd14-convnextv2-v2', repo_id='SmilingWolf/wd-v1-4-convnextv2-tagger-v2',
+        revision='v2.0'
+    ),
+    'wd14-swinv2-v2': WaifuDiffusionInterrogator(
+        'wd14-swinv2-v2', repo_id='SmilingWolf/wd-v1-4-swinv2-tagger-v2',
+        revision='v2.0'
+    ),
+    'wd14-vit-v2': WaifuDiffusionInterrogator(
+        'wd14-vit-v2', repo_id='SmilingWolf/wd-v1-4-vit-tagger-v2',
+        revision='v2.0'
+    ),
+    'wd14-moat-v2': WaifuDiffusionInterrogator(
+        'wd-v1-4-moat-tagger-v2',
+        repo_id='SmilingWolf/wd-v1-4-moat-tagger-v2',
+        revision='v2.0'
+    ),
+}
+
+
 def split_str(s: str, separator=',') -> List[str]:
     return [x.strip() for x in s.split(separator) if x]
 
@@ -227,7 +260,6 @@ def on_interrogate(
 
         unload_model_after_running: bool
 ):
-
     postprocess_opts = (
         threshold,
         split_str(additional_tags),
@@ -257,7 +289,7 @@ def on_interrogate(
 
         # check the input directory path
         if not os.path.isdir(base_dir):
-            print("input path is not a directory / 输入的路径不是文件夹，终止识别")
+            print('input path is not a directory / 输入的路径不是文件夹，终止识别')
             return 'input path is not a directory'
 
         # this line is moved here because some reason
@@ -363,4 +395,4 @@ def on_interrogate(
     if unload_model_after_running:
         interrogator.unload()
 
-    return "Succeed"
+    return 'Succeed'
