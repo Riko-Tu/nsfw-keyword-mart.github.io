@@ -355,7 +355,7 @@
 
       const targetKey = path[path.length - 1];
       if (!node[targetKey]) return showToast(`标签 "${targetKey}" 不存在！`, 'error');
-      if (!Array.isArray(node[targetKey])) return showToast(`"${targetKey}" 不是关键词列表！`, 'error');
+      // if (!Array.isArray(node[targetKey])) return showToast(`"${targetKey}" 不是关键词列表！`, 'error');
 
       node[targetKey].push({
         "词": word,
