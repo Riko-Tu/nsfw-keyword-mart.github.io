@@ -2,160 +2,63 @@
   "身体": {
     "脸部": {
       "眼睛": [
-        {"词":"ahegao", "强度":0.8, "图":"https://i.postimg.cc/9QdY8Z3k/ahegao.jpg", "复制":45},
-        {"词":"heart pupils", "强度":0.9, "图":"https://i.postimg.cc/3xY7vP9m/heart-pupils.jpg", "复制":32},
-        {"词":"tears", "强度":0.7, "图":"https://i.postimg.cc/3xY7vP9m/tears.jpg", "复制":18},
-        {"词":"blushing", "强度":0.6, "图":"https://i.postimg.cc/3xY7vP9m/blushing.jpg", "复制":28}
+        {
+          "词": "ahegao",
+          "强度": 0.8,
+          "图": "https://i.postimg.cc/9QdY8Z3k/ahegao.jpg",
+          "复制": 45,
+          "词2": "阿嘿颜"
+        },
+        {
+          "词": "heart pupils",
+          "强度": 0.9,
+          "图": "https://i.postimg.cc/3xY7vP9m/heart-pupils.jpg",
+          "复制": 32,
+          "词2": "心形瞳孔"
+        }
       ],
       "嘴": [
-        "tongue out",
-        "saliva",
-        "drooling",
-        "open mouth"
+        {
+          "词": "tongue out",
+          "强度": 0.7,
+          "复制": 28,
+          "词2": "吐舌头"
+        },
+        "saliva"
       ]
     },
     "胸部": {
       "尺寸": [
-        {"词":"flat chest", "强度":0.5, "图":"https://i.postimg.cc/3wY8vP9m/flat.jpg", "复制":15},
-        {"词":"small breasts", "强度":0.7, "图":"https://i.postimg.cc/3wY8vP9m/small.jpg", "复制":22},
-        {"词":"medium breasts", "强度":0.8, "图":"https://i.postimg.cc/3wY8vP9m/medium.jpg", "复制":38},
-        {"词":"large breasts", "强度":0.9, "图":"https://i.postimg.cc/3wY8vP9m/large-breasts.jpg", "复制":68},
-        {"词":"huge breasts", "强度":1.0, "图":"https://i.postimg.cc/3xY7vP9m/huge-breasts.jpg", "复制":55},
-        {"词":"gigantic breasts", "强度":1.0, "图":"https://i.postimg.cc/3xY7vP9m/gigantic.jpg", "复制":42}
-      ],
-      "乳头": [
-        "erect nipples",
-        "puffy nipples",
-        "dark nipples",
-        "pierced nipples"
-      ],
-      "状态": [
-        "breasts out",
-        "topless",
-        "nipples visible through clothing"
-      ]
-    },
-    "私密": {
-      "阴部": [
-        {"词":"pussy", "强度":1.0, "图":"https://i.postimg.cc/3xY7vP9m/pussy.jpg", "复制":78},
-        {"词":"wet pussy", "强度":1.0, "图":"https://i.postimg.cc/3xY7vP9m/wet.jpg", "复制":65},
-        {"词":"spread pussy", "强度":1.0, "图":"https://i.postimg.cc/3xY7vP9m/spread.jpg", "复制":52},
-        {"词":"cameltoe", "强度":0.8, "图":"https://i.postimg.cc/3xY7vP9m/cameltoe.jpg", "复制":30}
-      ],
-      "体毛": [
-        "pubic hair",
-        "shaved pussy",
-        "trimmed pubic hair"
-      ]
-    },
-    "臀部": {
-      "尺寸": [
-        "slim hips",
-        "wide hips",
-        "thick thighs",
-        "bubble butt"
-      ],
-      "状态": [
-        "bottomless",
-        "ass focus",
-        "spread ass"
+        {
+          "词": "large breasts",
+          "强度": 0.9,
+          "图": "https://i.postimg.cc/3wY8vP9m/large-breasts.jpg",
+          "复制": 68,
+          "词2": "巨乳"
+        },
+        {
+          "词": "huge breasts",
+          "强度": 1.0,
+          "图": "https://i.postimg.cc/3xY7vP9m/huge-breasts.jpg",
+          "复制": 55,
+          "词2": "超巨乳"
+        }
       ]
     }
   },
-  "服装": {
-    "上衣": [
-      "micro bikini",
-      "lingerie",
-      "see-through",
-      "pasties"
-    ],
-    "下装": [
-      "no panties",
-      "torn pantyhose",
-      "crotchless panties"
-    ],
-    "特殊": [
-      "naked apron",
-      "virgin killer sweater",
-      "sweater lift"
-    ],
-    "校服": [
-      "school uniform",
-      "sailor uniform",
-      "blazer"
-    ]
-  },
-  "姿势": [
-    "kneeling",
-    "doggystyle",
-    "missionary",
-    "cowgirl position",
-    "spooning",
-    "standing sex",
-    "against wall",
-    "bent over"
-  ],
-  "表情": [
-    "ahegao",
-    "blushing",
-    "angry",
-    "crying",
-    "sleepy",
-    "smiling",
-    "embarrassed",
-    "drunk"
-  ],
-  "场景": {
-    "室内": [
-      "bedroom",
-      "bathroom",
-      "shower",
-      "classroom",
-      "office"
-    ],
-    "户外": [
-      "public",
-      "beach",
-      "park",
-      "forest"
-    ],
-    "特殊": [
-      "tentacles",
-      "glory hole",
-      "onahole",
-      "sex toys"
-    ]
-  },
   "质量词": [
-    {"词":"masterpiece", "强度":1.0, "复制":120},
-    {"词":"best quality", "强度":1.0, "复制":98},
-    {"词":"ultra detailed", "强度":1.0, "复制":85},
-    {"词":"8k", "强度":0.9, "复制":72},
-    {"词":"absurdres", "强度":1.0, "复制":65},
-    {"词":"highres", "强度":0.9, "复制":58},
-    {"词":"sharp focus", "强度":0.8, "复制":45},
-    {"词":"cinematic lighting", "强度":0.9, "复制":52},
-    {"词":"depth of field", "强度":0.8, "复制":40}
-  ],
-  "LoRA 触发词": [
-    "<lora:HugeBreasts:0.7>",
-    "<lora:Ahegao:0.6>",
-    "<lora:MicroBikini:0.7>",
-    "<lora:Kneeling:0.8>"
-  ],
-  "负向提示": [
-    "blurry",
-    "lowres",
-    "deformed",
-    "ugly",
-    "extra limbs",
-    "bad anatomy",
-    "bad hands",
-    "watermark",
-    "text",
-    "child",
-    "loli",
-    "score_4",
-    "score_5"
+    {
+      "词": "masterpiece",
+      "强度": 1.0,
+      "复制": 120,
+      "词2": "杰作"
+    },
+    {
+      "词": "best quality",
+      "强度": 1.0,
+      "复制": 98,
+      "词2": "最佳质量"
+    },
+    "8k"
   ]
 }
