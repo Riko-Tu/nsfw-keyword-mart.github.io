@@ -67,155 +67,60 @@
     </div>
   </div>
 
-  <script>
-    let treeData = null;
-    let currentPath = [];
-    let currentItems = [];
-    let cart = JSON.parse(localStorage.getItem('nsfw-cart') || '[]');
-    let copyCounts = JSON.parse(localStorage.getItem('nsfw-copies') || '{}');
+<script>
+  // 格式化次数
+  function formatCount(count) {
+    return count >= 1000 ? Math.floor(count / 1000) + 'k' : count;
+  }
 
-    // 中文翻译表（可扩展）
-    const zhMap = {
-      "ahegao": "阿嘿颜",
-      "large breasts": "巨乳",
-      "huge breasts": "超巨乳",
-      "masterpiece": "杰作",
-      "best quality": "最佳质量",
-      "tongue out": "吐舌头",
-      "saliva": "口水"
-    };
+  // 渲染卡片（已适配新结构）
+  function renderCards() {
+    if (!treeData) return;
+    const order = document.getElementById('sortOrder').value;
+    const sorted = [...currentItems].sort((a,b) => {
+      const ca = copyCounts[a.词] || a.复制 || 0;
+      const cb = copyCounts[b.词] || b.复制 || 0;
+      return order === 'desc' ? cb - ca : ca - cb;
+    });
 
-    // 格式化次数
-    function formatCount(count) {
-      if (count >= 1000) {
-        return Math.floor(count / 1000) + 'k';
-      }
-      return count;
+    const grid = document.getElementById('cardGrid');
+    if (currentItems.length === 0) {
+      grid.innerHTML = '<div class="loading">请选择左侧分类</div>';
+      return;
     }
 
-    // 加载 test-data.json
-    async function loadData() {
-      try {
-        const res = await fetch('test-data.json');
-        if (!res.ok) throw new Error('文件未找到');
-        treeData = await res.json();
-        document.querySelector('.sidebar .loading').style.display = 'none';
-        document.getElementById('navTree').style.display = 'block';
-        buildNav(treeData, document.getElementById('navTree'));
-        goTo([]);
-        renderCart();
-      } catch (e) {
-        document.querySelector('.sidebar').innerHTML = `<div style="color:red;padding:20px;">加载 test-data.json 失败！<br>请确保文件在同一目录。</div>`;
-      }
-    }
+    grid.innerHTML = sorted.map(item => {
+      // 兼容新旧格式
+      const word = item.词 || item;
+      const count = copyCounts[word] || item.复制 || 0;
+      const countStr = count > 0 ? `&lt;${formatCount(count)}&gt;` : '';
+      const title = `${word} ${countStr}`;
+      const subtitle = item.词2 || '暂无翻译';
 
-    // 导航树
-    function buildNav(node, parent, path=[]) {
-      Object.keys(node).forEach(key => {
-        const li = document.createElement('li');
-        const span = document.createElement('span');
-        span.className = 'folder';
-        span.innerHTML = `<i class="fas fa-folder"></i> ${key}`;
-        span.onclick = () => goTo([...path, key]);
-        li.appendChild(span);
-        if (typeof node[key] === 'object' && !Array.isArray(node[key])) {
-          const ul = document.createElement('ul');
-          ul.className = 'sub';
-          li.appendChild(ul);
-          buildNav(node[key], ul, [...path, key]);
-        }
-        parent.appendChild(li);
-      });
-    }
-
-    // 进入路径
-    function goTo(path) {
-      currentPath = path;
-      let node = treeData;
-      path.forEach(p => node = node[p]);
-      currentItems = Array.isArray(node) ? node.map(w => typeof w === 'string' ? {词:w, 强度:'-'} : w) : [];
-      renderCards();
-    }
-
-    // 渲染卡片（核心修改）
-    function renderCards() {
-      if (!treeData) return;
-      const order = document.getElementById('sortOrder').value;
-      const sorted = [...currentItems].sort((a,b) => {
-        const ca = copyCounts[a.词] || a.复制 || 0;
-        const cb = copyCounts[b.词] || b.复制 || 0;
-        return order === 'desc' ? cb - ca : ca - cb;
-      });
-      const grid = document.getElementById('cardGrid');
-      if (currentItems.length === 0) {
-        grid.innerHTML = '<div class="loading">请选择左侧分类</div>';
-        return;
-      }
-      grid.innerHTML = sorted.map(item => {
-        const count = copyCounts[item.词] || item.复制 || 0;
-        const countStr = count > 0 ? `&lt;${formatCount(count)}&gt;` : '';
-        const title = `${item.词} ${countStr}`;
-        const subtitle = zhMap[item.词] || '暂无翻译';
-        return `
-          <div class="card">
-            ${item.图 ? `<img src="${item.图}" loading="lazy" onerror="this.src='https://via.placeholder.com/220x140?text=无图'">` : ''}
-            <div class="card-body">
-              <div class="card-title">${title}</div>
-              <div class="card-subtitle">${subtitle} · 强度: ${item.强度 || '-'}</div>
-              <div class="card-actions">
-                <button class="btn-copy" onclick="copyWord('${item.词}')"><i class="fas fa-copy"></i></button>
-                <button class="btn-cart" onclick="addToCart('${item.词}')"><i class="fas fa-plus"></i></button>
-              </div>
+      return `
+        <div class="card">
+          ${item.图 ? `<img src="${item.图}" loading="lazy" onerror="this.src='https://via.placeholder.com/220x140?text=无图'">` : ''}
+          <div class="card-body">
+            <div class="card-title">${title}</div>
+            <div class="card-subtitle">${subtitle} · 强度: ${item.强度 || '-'}</div>
+            <div class="card-actions">
+              <button class="btn-copy" onclick="copyWord('${word}')"><i class="fas fa-copy"></i></button>
+              <button class="btn-cart" onclick="addToCart('${word}')"><i class="fas fa-plus"></i></button>
             </div>
           </div>
-        `;
-      }).join('');
-    }
+        </div>
+      `;
+    }).join('');
+  }
 
-    // 复制关键词
-    function copyWord(word) {
-      navigator.clipboard.writeText(word);
-      copyCounts[word] = (copyCounts[word] || 0) + 1;
-      localStorage.setItem('nsfw-copies', JSON.stringify(copyCounts));
-      renderCards();
-      renderCart();
-    }
-
-    // 加入购物车
-    function addToCart(word) {
-      if (!cart.includes(word)) {
-        cart.push(word);
-        localStorage.setItem('nsfw-cart', JSON.stringify(cart));
-        renderCart();
-      }
-    }
-
-    // 渲染购物车
-    function renderCart() {
-      const container = document.getElementById('cartTags');
-      const count = document.getElementById('cartCount');
-      count.textContent = cart.length;
-      if (cart.length === 0) {
-        container.innerHTML = '<span class="empty">暂无关键词</span>';
-      } else {
-        container.innerHTML = cart.map(w => `
-          <div class="tag">${w} <button onclick="removeFromCart('${w}')">x</button></div>
-        `).join('');
-      }
-    }
-
-    // 其他函数
-    function removeFromCart(word) { cart = cart.filter(w => w !== word); localStorage.setItem('nsfw-cart', JSON.stringify(cart)); renderCart(); }
-    function clearCart() { cart = []; localStorage.setItem('nsfw-cart', JSON.stringify(cart)); renderCart(); }
-    function copyCart() {
-      if (cart.length === 0) return alert('购物车为空');
-      const text = cart.join(', ');
-      navigator.clipboard.writeText(text);
-      alert('已复制购物车：\n' + text);
-    }
-
-    // 初始化
-    loadData();
-  </script>
+  // 复制关键词（保持原逻辑）
+  function copyWord(word) {
+    navigator.clipboard.writeText(word);
+    copyCounts[word] = (copyCounts[word] || 0) + 1;
+    localStorage.setItem('nsfw-copies', JSON.stringify(copyCounts));
+    renderCards();
+    renderCart();
+  }
+</script>
 </body>
 </html>
