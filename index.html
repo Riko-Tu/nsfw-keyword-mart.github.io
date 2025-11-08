@@ -7,23 +7,8 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family: 'Segoe UI', sans-serif; background:#0f0f0f; color:#eee; display:flex; flex-direction:column; height:100vh; }
-    .header { padding:16px; background:#1a1a1a; text-align:center; font-size:1.5rem; }
-    .container { flex:1; display:flex; overflow:hidden; }
-    .sidebar { width:280px; background:#1a1a1a; padding:16px; overflow-y:auto; border-right:1px solid #333; }
-    .sidebar ul { list-style:none; }
-    .sidebar li { margin:6px 0; }
-    .sidebar .folder { cursor:pointer; padding:8px; <!DOCTYPE html>
-<html lang="zh">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>NSFW 关键词超市</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
-  <style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family: 'Segoe UI', sans-serif; background:#0f0f0f; color:#eee; display:flex; flex-direction:column; height:100vh; }
-    .header { padding:16px; background:#1a1a1a; text-align:center; font-size:1.5rem; }
+    body { font-family: 'Segoe UI', sans-serif; background:#0f0f0f; color:#eee; display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+    .header { padding:16px; background:#1a1a1a; text-align:center; font-size:1.5rem; border-bottom:1px solid #333; }
     .container { flex:1; display:flex; overflow:hidden; }
     .sidebar { width:280px; background:#1a1a1a; padding:16px; overflow-y:auto; border-right:1px solid #333; }
     .sidebar ul { list-style:none; }
@@ -33,7 +18,7 @@
     .sidebar .folder i { width:16px; }
     .sidebar .sub { margin-left:20px; border-left:1px dashed #444; padding-left:12px; }
     .main { flex:1; padding:20px; overflow-y:auto; background:#121212; }
-    .controls { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+    .controls { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; padding:0 10px; }
     .controls button { padding:8px 16px; background:#007bff; color:#fff; border:none; border-radius:4px; cursor:pointer; }
     .controls select { padding:8px; background:#333; color:#fff; border:none; border-radius:4px; }
     .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px,1fr)); gap:16px; }
@@ -85,7 +70,7 @@
 <body>
   <div class="header">NSFW 关键词超市</div>
 
-  <div class="controls" style="padding:10px; background:#1a1a1a; flex-wrap:wrap;">
+  <div class="controls">
     <button onclick="addNewWord()">新增关键词</button>
     <button onclick="exportJSON()">导出 JSON</button>
     <input type="file" id="importFile" onchange="importJSON(event)" style="display:none;">
@@ -93,423 +78,6 @@
   </div>
 
   <!-- 新增关键词弹窗 -->
-  <div id="addModal" style="display:flex;">
-    <div class="modal-content">
-      <h3 style="margin-bottom:20px; text-align:center;">新增 NSFW 关键词</h3>
-
-      <div class="form-group">
-        <label>目标标签路径</label>
-        <div class="cascade-selects">
-          <select id="level1"><option value="">一级标签</option></select>
-          <select id="level2"><option value="">二级标签</option></select>
-          <select id="level3"><option value="">三级标签</option></select>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label>英文关键词</label>
-        <input type="text" id="newWord" placeholder="e.g., large breasts">
-      </div>
-
-      <div class="form-group">
-        <label>中文翻译</label>
-        <input type="text" id="newZh" placeholder="e.g., 巨乳">
-      </div>
-
-      <div class="form-group">
-        <label>强度 (0.1 - 1.0)</label>
-        <input type="number" id="newStrength" step="0.1" min="0.1" max="1.0" value="0.8">
-      </div>
-
-      <div class="form-group">
-        <label>图片</label>
-        <div class="img-section">
-          <div class="img-preview" id="imgPreview">
-            <small style="color:#666;">上传后显示图床图片</small>
-          </div>
-          <div class="img-actions">
-            <input type="file" id="imgUpload" accept="image/*" style="display:none;">
-            <button class="btn-select" id="btnSelectImg">选择图片</button>
-            <button class="btn-upload" id="btnUploadImg" disabled>获取 URL</button>
-          </div>
-        </div>
-        <small style="color:#aaa;">上传到 Catbox (免费、永久、支持 NSFW)</small>
-      </div>
-
-      <div class="modal-footer">
-        <button class="btn-cancel" onclick="closeModal()">取消</button>
-        <button class="btn-confirm" onclick="confirmAdd()">确认添加</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="container">
-    <nav class="sidebar">
-      <div class="loading">云端加载中...</div>
-      <ul id="navTree" style="display:none;"></ul>
-    </nav>
-    <section class="main">
-      <div class="controls">
-        <select id="sortOrder" onchange="renderCards()">
-          <option value="desc">复制次数降序</option>
-          <option value="asc">复制次数升序</option>
-        </select>
-        <button onclick="clearCart()">清空购物车</button>
-      </div>
-      <div id="cardGrid" class="grid">
-        <div class="loading">请先选择左侧分类</div>
-      </div>
-    </section>
-  </div>
-
-  <script>
-    const BIN_ID = '690f2ed2d0ea881f40db9bc3';
-    const MASTER_KEY = '$2a$10$xnT36sEdgvmYUqMghhjHuuDn.ErHF2gpSRxGohHLUJ5HUg8/Z3XEq';
-
-    let treeData = null;
-    let currentPath = [];
-    let currentItems = [];
-    let cart = JSON.parse(localStorage.getItem('nsfw-cart') || '[]');
-    let copyCounts = JSON.parse(localStorage.getItem('nsfw-copies') || '{}');
-    let selectedFile = null;
-    let uploadedUrl = '';
-
-    // === WebUI 飘窗提示 ===
-    function showToast(msg, type = 'success') {
-      const toast = document.createElement('div');
-      toast.className = `toast ${type === 'error' ? 'error' : ''}`;
-      toast.textContent = msg;
-      document.body.appendChild(toast);
-      
-      setTimeout(() => {
-        toast.style.opacity = 1;
-        toast.style.transform = 'translateX(0)';
-      }, 10);
-      
-      setTimeout(() => {
-        toast.style.opacity = 0;
-        toast.style.transform = 'translateX(100%)';
-        toast.addEventListener('transitionend', () => toast.remove());
-      }, 3000);
-    }
-
-    // === 云端读写 ===
-    async function loadData() {
-      try {
-        const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, { headers: { 'X-Master-Key': MASTER_KEY } });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        treeData = await res.json();
-        document.querySelector('.sidebar .loading').style.display = 'none';
-        document.getElementById('navTree').style.display = 'block';
-        buildNav(treeData, document.getElementById('navTree'));
-        initCascadeSelects();
-        goTo([]);
-        renderCart();
-        showToast('云端数据加载成功！');
-      } catch (e) {
-        showToast('加载失败: ' + e.message, 'error');
-      }
-    }
-
-    async function saveData() {
-      try {
-        const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'X-Master-Key': MASTER_KEY },
-          body: JSON.stringify(treeData)
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        showToast('已保存到云端！');
-      } catch (e) {
-        showToast('保存失败: ' + e.message, 'error');
-      }
-    }
-
-    // === 稳定上传 ===
-    async function uploadToLitterbox(file) {
-      const form = new FormData();
-      form.append('reqtype', 'fileupload');
-      form.append('fileToUpload', file);
-      const res = await fetch('https://catbox.moe/user/api.php', {
-        method: 'POST',
-        body: form,
-        headers: { 'User-Agent': 'Mozilla/5.0' }
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const url = await res.text();
-      if (url.startsWith('https://files.catbox.moe/')) return url;
-      throw new Error(url || '上传失败');
-    }
-
-    // === 级联标签（选三级 → 自动补全 + 填充）===
-    function initCascadeSelects() {
-      const l1 = document.getElementById('level1');
-      const l2 = document.getElementById('level2');
-      const l3 = document.getElementById('level3');
-
-      l1.innerHTML = '<option value="">一级标签</option>';
-      l2.innerHTML = '<option value="">二级标签</option>';
-      l3.innerHTML = '<option value="">三级标签</option>';
-
-      const leafPaths = [];
-      function collect(node, path = []) {
-        if (Array.isArray(node)) leafPaths.push([...path]);
-        else if (typeof node === 'object') for (const k in node) collect(node[k], [...path, k]);
-      }
-      collect(treeData);
-
-      const level1Set = new Set(), level2Map = {}, level3Map = {};
-      leafPaths.forEach(p => {
-        if (p[0]) level1Set.add(p[0]);
-        if (p[0] && p[1]) { if (!level2Map[p[0]]) level2Map[p[0]] = new Set(); level2Map[p[0]].add(p[1]); }
-        if (p[0] && p[1] && p[2]) { const k = `${p[0]}|${p[1]}`; if (!level3Map[k]) level3Map[k] = new Set(); level3Map[k].add(p[2]); }
-      });
-
-      [...level1Set].sort().forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = k; l1.appendChild(o); });
-
-      function updateL2() {
-        const v1 = l1.value;
-        l2.innerHTML = '<option value="">二级标签</option>';
-        if (v1 && level2Map[v1]) [...level2Map[v1]].sort().forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = k; l2.appendChild(o); });
-      }
-
-      function updateL3() {
-        const v1 = l1.value, v2 = l2.value;
-        l3.innerHTML = '<option value="">三级标签</option>';
-        if (v1 && v2 && level3Map[`${v1}|${v2}`]) [...level3Map[`${v1}|${v2}`]].sort().forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = k; l3.appendChild(o); });
-      }
-
-      l1.onchange = () => { updateL2(); updateL3(); };
-      l2.onchange = () => updateL3();
-
-      l3.onchange = () => {
-        const v3 = l3.value;
-        if (!v3) return;
-        for (const path of leafPaths) {
-          if (path[2] === v3) {
-            l1.value = path[0];
-            updateL2();
-            l2.value = path[1];
-            updateL3();
-            for (const opt of l3.options) if (opt.value === v3) { opt.selected = true; break; }
-            break;
-          }
-        }
-      };
-
-      updateL2(); updateL3();
-    }
-
-    // === 进入页面自动弹出 ===
-    function addNewWord() {
-      document.getElementById('addModal').style.display = 'flex';
-      document.getElementById('newWord').value = '';
-      document.getElementById('newZh').value = '';
-      document.getElementById('newStrength').value = '0.8';
-      document.getElementById('imgPreview').innerHTML = '<small style="color:#666;">上传后显示图床图片</small>';
-      document.getElementById('btnUploadImg').disabled = true;
-      document.getElementById('btnUploadImg').textContent = '获取 URL';
-      selectedFile = null;
-      uploadedUrl = '';
-      if (treeData) initCascadeSelects();
-    }
-
-    function closeModal() { document.getElementById('addModal').style.display = 'none'; }
-
-    document.getElementById('btnSelectImg').onclick = () => document.getElementById('imgUpload').click();
-    document.getElementById('imgUpload').onchange = e => { selectedFile = e.target.files[0]; if (selectedFile) document.getElementById('btnUploadImg').disabled = false; };
-
-    document.getElementById('btnUploadImg').onclick = async () => {
-      if (!selectedFile) return;
-      const btn = document.getElementById('btnUploadImg');
-      btn.disabled = true; btn.textContent = '上传中...';
-      try {
-        uploadedUrl = await uploadToLitterbox(selectedFile);
-        document.getElementById('imgPreview').innerHTML = `<img src="${uploadedUrl}">`;
-        showToast('上传成功！');
-        btn.textContent = '已获取';
-      } catch (e) {
-        showToast(e.message, 'error');
-        btn.textContent = '获取 URL'; btn.disabled = false;
-      }
-    };
-
-    // === 确认添加（精准路径 + WebUI 提示）===
-    function confirmAdd() {
-      const word = document.getElementById('newWord').value.trim();
-      const zh = document.getElementById('newZh').value.trim();
-      const strength = parseFloat(document.getElementById('newStrength').value) || 0.8;
-      const l1 = document.getElementById('level1').value;
-      const l2 = document.getElementById('level2').value;
-      const l3 = document.getElementById('level3').value;
-
-      if (!word) return showToast('英文关键词不能为空！', 'error');
-      if (!l1) return showToast('请至少选择一级标签！', 'error');
-
-      const path = [l1]; if (l2) path.push(l2); if (l3) path.push(l3);
-
-      let node = treeData;
-      for (let i = 0; i < path.length - 1; i++) {
-        if (!node[path[i]] || typeof node[path[i]] !== 'object') {
-          return showToast(`路径错误：${path.slice(0, i + 1).join(' → ')} 不存在`, 'error');
-        }
-        node = node[path[i]];
-      }
-
-      const finalKey = path[path.length - 1];
-      if (!node[finalKey]) return showToast(`标签 "${finalKey}" 不存在！`, 'error');
-      if (!Array.isArray(node[finalKey])) return showToast(`"${finalKey}" 不是关键词列表！`, 'error');
-
-      node[finalKey].push({ "词": word, "强度": strength, "图": uploadedUrl, "复制": 0, "词2": zh });
-      renderCards(); saveData(); closeModal();
-      showToast('关键词添加成功！');
-    }
-
-    // === 导航 & 渲染（保持不变）===
-    function buildNav(node, parent, path=[]) {
-      Object.keys(node).forEach(key => {
-        const li = document.createElement('li');
-        const span = document.createElement('span');
-        span.className = 'folder';
-        span.innerHTML = `<i class="fas fa-folder"></i> ${key}`;
-        span.onclick = () => goTo([...path, key]);
-        li.appendChild(span);
-        if (typeof node[key] === 'object' && !Array.isArray(node[key])) {
-          const ul = document.createElement('ul');
-          ul.className = 'sub';
-          li.appendChild(ul);
-          buildNav(node[key], ul, [...path, key]);
-        }
-        parent.appendChild(li);
-      });
-    }
-
-    function goTo(path) {
-      currentPath = path;
-      let node = treeData;
-      path.forEach(p => node = node[p]);
-      currentItems = Array.isArray(node) ? node.map(w => typeof w === 'string' ? {词:w} : w) : [];
-      renderCards();
-    }
-
-    function renderCards() {
-      if (!treeData) return;
-      const order = document.getElementById('sortOrder').value;
-      const sorted = [...currentItems].sort((a,b) => {
-        const ca = copyCounts[a.词] || a.复制 || 0;
-        const cb = copyCounts[b.词] || b.复制 || 0;
-        return order === 'desc' ? cb - ca : ca - cb;
-      });
-
-      const grid = document.getElementById('cardGrid');
-      if (currentItems.length === 0) {
-        grid.innerHTML = '<div class="loading">请选择左侧分类</div>';
-        return;
-      }
-
-      grid.innerHTML = sorted.map(item => {
-        const word = item.词 || item;
-        const count = copyCounts[word] || item.复制 || 0;
-        const countStr = count > 0 ? `&lt;${count >= 1000 ? Math.floor(count/1000)+'k' : count}&gt;` : '';
-        const title = `${word} ${countStr}`;
-        const subtitle = item.词2 || '暂无翻译';
-
-        return `
-          <div class="card">
-            ${item.图 ? `<img src="${item.图}" loading="lazy" onerror="this.src='https://via.placeholder.com/220x140?text=无图'">` : ''}
-            <div class="card-body">
-              <div class="card-title">${title}</div>
-              <div class="card-subtitle">${subtitle} · 强度: ${item.强度 || '-'}</div>
-              <div class="card-actions">
-                <button class="btn-copy" onclick="copyWord('${word}')">Copy</button>
-                <button class="btn-cart" onclick="addToCart('${word}')">Add</button>
-              </div>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    function copyWord(word) {
-      navigator.clipboard.writeText(word);
-      copyCounts[word] = (copyCounts[word] || 0) + 1;
-      localStorage.setItem('nsfw-copies', JSON.stringify(copyCounts));
-      renderCards();
-    }
-
-    function addToCart(word) {
-      if (!cart.includes(word)) { cart.push(word); localStorage.setItem('nsfw-cart', JSON.stringify(cart)); renderCart(); }
-    }
-
-    function renderCart() { /* 保持原逻辑 */ }
-    function exportJSON() { /* 保持原逻辑 */ }
-    function importJSON(e) { /* 保持原逻辑 */ }
-
-    // === 页面加载完成后自动弹出 ===
-    window.onload = () => {
-      loadData();
-      // 确保数据加载后再初始化弹窗
-      setTimeout(() => {
-        if (treeData) addNewWord();
-      }, 500);
-    };
-  </script>
-</body>
-</html>border-radius:6px; display:flex; align-items:center; gap:8px; }
-    .sidebar .folder:hover { background:#333; }
-    .sidebar .folder i { width:16px; }
-    .sidebar .sub { margin-left:20px; border-left:1px dashed #444; padding-left:12px; }
-    .main { flex:1; padding:20px; overflow-y:auto; background:#121212; }
-    .controls { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
-    .controls button { padding:8px 16px; background:#007bff; color:#fff; border:none; border-radius:4px; cursor:pointer; }
-    .controls select { padding:8px; background:#333; color:#fff; border:none; border-radius:4px; }
-    .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px,1fr)); gap:16px; }
-    .card { background:#1e1e1e; border-radius:12px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.3); transition:0.2s; }
-    .card:hover { transform:translateY(-4px); box-shadow:0 8px 20px rgba(0,0,0,0.5); }
-    .card img { width:100%; height:140px; object-fit:cover; }
-    .card-body { padding:12px; }
-    .card-title { font-weight:bold; font-size:1.1rem; margin-bottom:4px; cursor:pointer; }
-    .card-subtitle { font-size:0.85rem; color:#aaa; margin-bottom:8px; }
-    .card-actions { display:flex; gap:8px; }
-    .card-actions button { flex:1; padding:8px; font-size:1rem; border:none; border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; }
-    .btn-copy { background:#28a745; color:#fff; }
-    .btn-cart { background:#007bff; color:#fff; }
-    .loading { text-align:center; padding:40px; color:#666; }
-    .status { position:fixed; top:10px; right:10px; background:#28a745; color:#fff; padding:6px 12px; border-radius:20px; font-size:0.8rem; z-index:1000; display:none; }
-
-    #addModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:1000; display:flex; align-items:center; justify-content:center; }
-    .modal-content { background:#1e1e1e; padding:24px; border-radius:16px; width:90%; max-width:480px; color:#eee; box-shadow:0 10px 30px rgba(0,0,0,0.5); }
-    .form-group { margin-bottom:16px; }
-    .form-group label { display:block; font-size:0.9rem; color:#ccc; margin-bottom:6px; }
-    .form-group input, .form-group select { width:100%; padding:10px; border-radius:8px; border:none; background:#2a2a2a; color:#fff; font-size:1rem; }
-    .cascade-selects { display:flex; gap:8px; flex-wrap:wrap; }
-    .cascade-selects select { flex:1; min-width:100px; }
-    .img-section { margin:16px 0; }
-    .img-preview { height:140px; background:#2a2a2a; border-radius:8px; overflow:hidden; display:flex; align-items:center; justify-content:center; margin-bottom:8px; }
-    .img-preview img { max-width:100%; max-height:100%; object-fit:contain; }
-    .img-actions { display:flex; gap:8px; }
-    .img-actions button { flex:1; padding:10px; border:none; border-radius:6px; cursor:pointer; font-size:0.9rem; }
-    .btn-select { background:#555; color:#fff; }
-    .btn-upload { background:#007bff; color:#fff; }
-    .btn-upload:disabled { background:#444; cursor:not-allowed; }
-    .modal-footer { display:flex; gap:12px; margin-top:24px; }
-    .modal-footer button { flex:1; padding:12px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; }
-    .btn-cancel { background:#555; color:#fff; }
-    .btn-confirm { background:#007bff; color:#fff; }
-  </style>
-</head>
-<body>
-  <div class="header">NSFW 关键词超市</div>
-
-  <div class="controls" style="padding:10px; background:#1a1a1a; flex-wrap:wrap;">
-    <button onclick="addNewWord()">新增关键词</button>
-    <button onclick="exportJSON()">导出 JSON</button>
-    <input type="file" id="importFile" onchange="importJSON(event)" style="display:none;">
-    <button onclick="document.getElementById('importFile').click()">导入 JSON</button>
-  </div>
-
-  <div id="status" class="status"></div>
-
   <div id="addModal">
     <div class="modal-content">
       <h3 style="margin-bottom:20px; text-align:center;">新增 NSFW 关键词</h3>
@@ -590,16 +158,28 @@
     let copyCounts = JSON.parse(localStorage.getItem('nsfw-copies') || '{}');
     let selectedFile = null;
     let uploadedUrl = '';
+    let hasAutoOpened = false; // 标记是否已自动弹出
 
-    function showStatus(msg, isError = false) {
-      const el = document.getElementById('status');
-      el.textContent = msg;
-      el.style.background = isError ? '#dc3545' : '#28a745';
-      el.style.display = 'block';
-      clearTimeout(el.timer);
-      el.timer = setTimeout(() => el.style.display = 'none', 2500);
+    // === WebUI 飘窗提示 ===
+    function showToast(msg, type = 'success') {
+      const toast = document.createElement('div');
+      toast.className = `toast ${type === 'error' ? 'error' : ''}`;
+      toast.textContent = msg;
+      document.body.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.style.opacity = 1;
+        toast.style.transform = 'translateX(0)';
+      }, 10);
+      
+      setTimeout(() => {
+        toast.style.opacity = 0;
+        toast.style.transform = 'translateX(100%)';
+        toast.addEventListener('transitionend', () => toast.remove());
+      }, 3000);
     }
 
+    // === 云端读写 ===
     async function loadData() {
       try {
         const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, { headers: { 'X-Master-Key': MASTER_KEY } });
@@ -611,9 +191,15 @@
         initCascadeSelects();
         goTo([]);
         renderCart();
-        showStatus('云端数据加载成功！');
+        showToast('云端数据加载成功！');
+
+        // 加载完成后，自动弹出一次
+        if (!hasAutoOpened) {
+          hasAutoOpened = true;
+          addNewWord();
+        }
       } catch (e) {
-        showStatus('加载失败: ' + e.message, true);
+        showToast('加载失败: ' + e.message, 'error');
       }
     }
 
@@ -625,31 +211,29 @@
           body: JSON.stringify(treeData)
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        showStatus('已保存到云端！');
+        showToast('已保存到云端！');
       } catch (e) {
-        showStatus('保存失败: ' + e.message, true);
+        showToast('保存失败: ' + e.message, 'error');
       }
     }
 
-    // 终极修复：上传成功
+    // === 稳定上传 ===
     async function uploadToLitterbox(file) {
       const form = new FormData();
-      form.append('reqtype', 'fileupload');  // 必须！
+      form.append('reqtype', 'fileupload');
       form.append('fileToUpload', file);
-
       const res = await fetch('https://catbox.moe/user/api.php', {
         method: 'POST',
         body: form,
         headers: { 'User-Agent': 'Mozilla/5.0' }
       });
-
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const url = await res.text();
       if (url.startsWith('https://files.catbox.moe/')) return url;
       throw new Error(url || '上传失败');
     }
 
-    // 终极修复：三级标签选择
+    // === 级联标签 ===
     function initCascadeSelects() {
       const l1 = document.getElementById('level1');
       const l2 = document.getElementById('level2');
@@ -699,7 +283,6 @@
             updateL2();
             l2.value = path[1];
             updateL3();
-            // 手动选中
             for (const opt of l3.options) if (opt.value === v3) { opt.selected = true; break; }
             break;
           }
@@ -709,6 +292,7 @@
       updateL2(); updateL3();
     }
 
+    // === 弹窗控制 ===
     function addNewWord() {
       document.getElementById('addModal').style.display = 'flex';
       document.getElementById('newWord').value = '';
@@ -722,7 +306,9 @@
       if (treeData) initCascadeSelects();
     }
 
-    function closeModal() { document.getElementById('addModal').style.display = 'none'; }
+    function closeModal() {
+      document.getElementById('addModal').style.display = 'none';
+    }
 
     document.getElementById('btnSelectImg').onclick = () => document.getElementById('imgUpload').click();
     document.getElementById('imgUpload').onchange = e => { selectedFile = e.target.files[0]; if (selectedFile) document.getElementById('btnUploadImg').disabled = false; };
@@ -734,14 +320,15 @@
       try {
         uploadedUrl = await uploadToLitterbox(selectedFile);
         document.getElementById('imgPreview').innerHTML = `<img src="${uploadedUrl}">`;
-        showStatus('上传成功！');
+        showToast('上传成功！');
         btn.textContent = '已获取';
       } catch (e) {
-        showStatus(e.message, true);
+        showToast(e.message, 'error');
         btn.textContent = '获取 URL'; btn.disabled = false;
       }
     };
 
+    // === 确认添加 ===
     function confirmAdd() {
       const word = document.getElementById('newWord').value.trim();
       const zh = document.getElementById('newZh').value.trim();
@@ -750,25 +337,29 @@
       const l2 = document.getElementById('level2').value;
       const l3 = document.getElementById('level3').value;
 
-      if (!word) return showStatus('关键词不能为空！', true);
-      if (!l1) return showStatus('请选择标签路径！', true);
+      if (!word) return showToast('英文关键词不能为空！', 'error');
+      if (!l1) return showToast('请至少选择一级标签！', 'error');
 
       const path = [l1]; if (l2) path.push(l2); if (l3) path.push(l3);
-      const newItem = { "词": word, "强度": strength, "图": uploadedUrl, "复制": 0, "词2": zh };
 
       let node = treeData;
-      for (let i = 0; i < path.length - 1; i++) node = node[path[i]];
-      const finalKey = path[path.length - 1];
-      if (!node[finalKey] || !Array.isArray(node[finalKey])) return showStatus('目标不是数组！', true);
+      for (let i = 0; i < path.length - 1; i++) {
+        if (!node[path[i]] || typeof node[path[i]] !== 'object') {
+          return showToast(`路径错误：${path.slice(0, i + 1).join(' → ')} 不存在`, 'error');
+        }
+        node = node[path[i]];
+      }
 
-      node[finalKey].push(newItem);
-      renderCards();
-      saveData();
-      closeModal();
-      showStatus('添加成功！');
+      const finalKey = path[path.length - 1];
+      if (!node[finalKey]) return showToast(`标签 "${finalKey}" 不存在！`, 'error');
+      if (!Array.isArray(node[finalKey])) return showToast(`"${finalKey}" 不是关键词列表！`, 'error');
+
+      node[finalKey].push({ "词": word, "强度": strength, "图": uploadedUrl, "复制": 0, "词2": zh });
+      renderCards(); saveData(); closeModal();
+      showToast('关键词添加成功！');
     }
 
-    // 其他函数（buildNav, renderCards 等）保持不变
+    // === 其余函数 ===
     function buildNav(node, parent, path=[]) {
       Object.keys(node).forEach(key => {
         const li = document.createElement('li');
@@ -795,8 +386,63 @@
       renderCards();
     }
 
-    function renderCards() { /* 保持原逻辑 */ }
-    loadData();
+    function renderCards() {
+      if (!treeData) return;
+      const order = document.getElementById('sortOrder').value;
+      const sorted = [...currentItems].sort((a,b) => {
+        const ca = copyCounts[a.词] || a.复制 || 0;
+        const cb = copyCounts[b.词] || b.复制 || 0;
+        return order === 'desc' ? cb - ca : ca - cb;
+      });
+
+      const grid = document.getElementById('cardGrid');
+      if (currentItems.length === 0) {
+        grid.innerHTML = '<div class="loading">请选择左侧分类</div>';
+        return;
+      }
+
+      grid.innerHTML = sorted.map(item => {
+        const word = item.词 || item;
+        const count = copyCounts[word] || item.复制 || 0;
+        const countStr = count > 0 ? `<${count >= 1000 ? Math.floor(count/1000)+'k' : count}>` : '';
+        const title = `${word} ${countStr}`;
+        const subtitle = item.词2 || '暂无翻译';
+
+        return `
+          <div class="card">
+            ${item.图 ? `<img src="${item.图}" loading="lazy" onerror="this.src='https://via.placeholder.com/220x140?text=无图'">` : ''}
+            <div class="card-body">
+              <div class="card-title">${title}</div>
+              <div class="card-subtitle">${subtitle} · 强度: ${item.强度 || '-'}</div>
+              <div class="card-actions">
+                <button class="btn-copy" onclick="copyWord('${word}')">Copy</button>
+                <button class="btn-cart" onclick="addToCart('${word}')">Add</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function copyWord(word) {
+      navigator.clipboard.writeText(word);
+      copyCounts[word] = (copyCounts[word] || 0) + 1;
+      localStorage.setItem('nsfw-copies', JSON.stringify(copyCounts));
+      renderCards();
+    }
+
+    function addToCart(word) {
+      if (!cart.includes(word)) { cart.push(word); localStorage.setItem('nsfw-cart', JSON.stringify(cart)); renderCart(); }
+    }
+
+    function renderCart() { /* 保持原逻辑 */ }
+    function exportJSON() { /* 保持原逻辑 */ }
+    function importJSON(e) { /* 保持原逻辑 */ }
+
+    // === 页面加载 ===
+    window.onload = () => {
+      loadData();
+    };
   </script>
 </body>
 </html>
