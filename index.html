@@ -26,19 +26,13 @@
     .card:hover { transform:translateY(-4px); box-shadow:0 8px 20px rgba(0,0,0,0.5); }
     .card img { width:100%; height:140px; object-fit:cover; }
     .card-body { padding:12px; }
-    .card-title { font-weight:bold; margin-bottom:4px; }
-    .card-meta { font-size:0.8rem; color:#aaa; margin-bottom:8px; }
+    .card-title { font-weight:bold; font-size:1.1rem; margin-bottom:4px; }
+    .card-subtitle { font-size:0.85rem; color:#aaa; margin-bottom:8px; }
     .card-actions { display:flex; gap:8px; }
-    .card-actions button { flex:1; padding:6px; font-size:0.8rem; border:none; border-radius:4px; cursor:pointer; }
+    .card-actions button { flex:1; padding:8px; font-size:1rem; border:none; border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; }
     .btn-copy { background:#28a745; color:#fff; }
-    .btn-cart { background:#ffc107; color:#000; }
-    .count { background:#dc3545; color:#fff; padding:2px 6px; border-radius:10px; font-size:0.7rem; }
-    .cart { position:fixed; bottom:0; left:0; right:0; background:#1a1a1a; padding:16px; border-top:1px solid #333; }
-    .cart-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
-    .cart-tags { display:flex; flex-wrap:wrap; gap:6px; }
-    .tag { background:#007bff; color:#fff; padding:4px 10px; border-radius:20px; font-size:0.8rem; display:flex; align-items:center; gap:4px; }
-    .tag button { background:none; border:none; color:#fff; cursor:pointer; }
-    .empty { color:#888; font-style:italic; }
+    .btn-cart { background:#007bff; color:#fff; }
+    .count-tag { color:#ff6b6b; font-size:0.8rem; font-weight:normal; }
     .loading { text-align:center; padding:40px; color:#666; }
     @media (max-width:768px) { .container { flex-direction:column; } .sidebar { width:100%; max-height:200px; } }
   </style>
@@ -80,6 +74,25 @@
     let cart = JSON.parse(localStorage.getItem('nsfw-cart') || '[]');
     let copyCounts = JSON.parse(localStorage.getItem('nsfw-copies') || '{}');
 
+    // 中文翻译表（可扩展）
+    const zhMap = {
+      "ahegao": "阿嘿颜",
+      "large breasts": "巨乳",
+      "huge breasts": "超巨乳",
+      "masterpiece": "杰作",
+      "best quality": "最佳质量",
+      "tongue out": "吐舌头",
+      "saliva": "口水"
+    };
+
+    // 格式化次数
+    function formatCount(count) {
+      if (count >= 1000) {
+        return Math.floor(count / 1000) + 'k';
+      }
+      return count;
+    }
+
     // 加载 test-data.json
     async function loadData() {
       try {
@@ -120,11 +133,11 @@
       currentPath = path;
       let node = treeData;
       path.forEach(p => node = node[p]);
-      currentItems = Array.isArray(node) ? node.map(w => typeof w === 'string' ? {词:w, 强度:'-', 复制:0} : w) : [];
+      currentItems = Array.isArray(node) ? node.map(w => typeof w === 'string' ? {词:w, 强度:'-'} : w) : [];
       renderCards();
     }
 
-    // 渲染卡片
+    // 渲染卡片（核心修改）
     function renderCards() {
       if (!treeData) return;
       const order = document.getElementById('sortOrder').value;
@@ -138,19 +151,25 @@
         grid.innerHTML = '<div class="loading">请选择左侧分类</div>';
         return;
       }
-      grid.innerHTML = sorted.map(item => `
-        <div class="card">
-          ${item.图 ? `<img src="${item.图}" loading="lazy" onerror="this.src='https://via.placeholder.com/220x140?text=无图'">` : ''}
-          <div class="card-body">
-            <div class="card-title">${item.词}</div>
-            <div class="card-meta">强度: ${item.强度 || '-'} | 复制: <span class="count">${copyCounts[item.词] || item.复制 || 0}</span></div>
-            <div class="card-actions">
-              <button class="btn-copy" onclick="copyWord('${item.词}')"><i class="fas fa-copy"></i> 复制</button>
-              <button class="btn-cart" onclick="addToCart('${item.词}')"><i class="fas fa-cart-plus"></i> 加入</button>
+      grid.innerHTML = sorted.map(item => {
+        const count = copyCounts[item.词] || item.复制 || 0;
+        const countStr = count > 0 ? `&lt;${formatCount(count)}&gt;` : '';
+        const title = `${item.词} ${countStr}`;
+        const subtitle = zhMap[item.词] || '暂无翻译';
+        return `
+          <div class="card">
+            ${item.图 ? `<img src="${item.图}" loading="lazy" onerror="this.src='https://via.placeholder.com/220x140?text=无图'">` : ''}
+            <div class="card-body">
+              <div class="card-title">${title}</div>
+              <div class="card-subtitle">${subtitle} · 强度: ${item.强度 || '-'}</div>
+              <div class="card-actions">
+                <button class="btn-copy" onclick="copyWord('${item.词}')"><i class="fas fa-copy"></i></button>
+                <button class="btn-cart" onclick="addToCart('${item.词}')"><i class="fas fa-plus"></i></button>
+              </div>
             </div>
           </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
     // 复制关键词
@@ -185,7 +204,7 @@
       }
     }
 
-    // 移除、清空、复制全部
+    // 其他函数
     function removeFromCart(word) { cart = cart.filter(w => w !== word); localStorage.setItem('nsfw-cart', JSON.stringify(cart)); renderCart(); }
     function clearCart() { cart = []; localStorage.setItem('nsfw-cart', JSON.stringify(cart)); renderCart(); }
     function copyCart() {
