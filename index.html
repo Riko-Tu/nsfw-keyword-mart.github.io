@@ -158,7 +158,7 @@
     let copyCounts = JSON.parse(localStorage.getItem('nsfw-copies') || '{}');
     let selectedFile = null;
     let uploadedUrl = '';
-    let hasAutoOpened = false; // 标记是否已自动弹出
+    let hasAutoOpened = false;
 
     // === WebUI 飘窗提示 ===
     function showToast(msg, type = 'success') {
@@ -193,7 +193,6 @@
         renderCart();
         showToast('云端数据加载成功！');
 
-        // 加载完成后，自动弹出一次
         if (!hasAutoOpened) {
           hasAutoOpened = true;
           addNewWord();
@@ -328,7 +327,7 @@
       }
     };
 
-    // === 确认添加 ===
+    // === 正确添加逻辑：最后一级就是数组！===
     function confirmAdd() {
       const word = document.getElementById('newWord').value.trim();
       const zh = document.getElementById('newZh').value.trim();
@@ -338,24 +337,37 @@
       const l3 = document.getElementById('level3').value;
 
       if (!word) return showToast('英文关键词不能为空！', 'error');
-      if (!l1) return showToast('请至少选择一级标签！', 'error');
+      if (!l1)   return showToast('请至少选择一级标签！', 'error');
 
-      const path = [l1]; if (l2) path.push(l2); if (l3) path.push(l3);
+      const path = [l1];
+      if (l2) path.push(l2);
+      if (l3) path.push(l3);
 
+      // 遍历到倒数第二级
       let node = treeData;
       for (let i = 0; i < path.length - 1; i++) {
-        if (!node[path[i]] || typeof node[path[i]] !== 'object') {
-          return showToast(`路径错误：${path.slice(0, i + 1).join(' → ')} 不存在`, 'error');
+        const key = path[i];
+        if (!node[key] || typeof node[key] !== 'object' || Array.isArray(node[key])) {
+          return showToast(`路径错误：${path.slice(0, i + 1).join(' → ')} 不是文件夹`, 'error');
         }
-        node = node[path[i]];
+        node = node[key];
       }
 
-      const finalKey = path[path.length - 1];
-      if (!node[finalKey]) return showToast(`标签 "${finalKey}" 不存在！`, 'error');
-      if (!Array.isArray(node[finalKey])) return showToast(`"${finalKey}" 不是关键词列表！`, 'error');
+      const targetKey = path[path.length - 1];
+      if (!node[targetKey]) return showToast(`标签 "${targetKey}" 不存在！`, 'error');
+      if (!Array.isArray(node[targetKey])) return showToast(`"${targetKey}" 不是关键词列表！`, 'error');
 
-      node[finalKey].push({ "词": word, "强度": strength, "图": uploadedUrl, "复制": 0, "词2": zh });
-      renderCards(); saveData(); closeModal();
+      node[targetKey].push({
+        "词": word,
+        "强度": strength,
+        "图": uploadedUrl,
+        "复制": 0,
+        "词2": zh
+      });
+
+      renderCards();
+      saveData();
+      closeModal();
       showToast('关键词添加成功！');
     }
 
@@ -439,10 +451,7 @@
     function exportJSON() { /* 保持原逻辑 */ }
     function importJSON(e) { /* 保持原逻辑 */ }
 
-    // === 页面加载 ===
-    window.onload = () => {
-      loadData();
-    };
+    window.onload = () => loadData();
   </script>
 </body>
 </html>
