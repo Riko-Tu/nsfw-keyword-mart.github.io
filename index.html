@@ -26,25 +26,28 @@
     .card:hover { transform:translateY(-4px); box-shadow:0 8px 20px rgba(0,0,0,0.5); }
     .card img { width:100%; height:140px; object-fit:cover; }
     .card-body { padding:12px; }
-    .card-title { font-weight:bold; font-size:1.1rem; margin-bottom:4px; }
+    .card-title { font-weight:bold; font-size:1.1rem; margin-bottom:4px; cursor:pointer; }
     .card-subtitle { font-size:0.85rem; color:#aaa; margin-bottom:8px; }
     .card-actions { display:flex; gap:8px; }
     .card-actions button { flex:1; padding:8px; font-size:1rem; border:none; border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; }
     .btn-copy { background:#28a745; color:#fff; }
     .btn-cart { background:#007bff; color:#fff; }
-    .count-tag { color:#ff6b6b; font-size:0.8rem; font-weight:normal; }
+    .count-tag { color:#ff6b6b; font-size:0.8rem; }
     .loading { text-align:center; padding:40px; color:#666; }
     @media (max-width:768px) { .container { flex-direction:column; } .sidebar { width:100%; max-height:200px; } }
   </style>
 </head>
 <body>
-  <div class="controls">
-  <button onclick="addNewWord()">新增关键词</button>
-  <button onclick="exportJSON()">导出 JSON（保存）</button>
-  <input type="file" id="importFile" onchange="importJSON(event)" style="display:none;">
-  <button onclick="document.getElementById('importFile').click()">导入 JSON</button>
-</div>
   <div class="header">NSFW 关键词超市</div>
+
+  <!-- 顶部控制栏 -->
+  <div class="controls" style="padding:10px; background:#1a1a1a; flex-wrap:wrap;">
+    <button onclick="addNewWord()">新增关键词</button>
+    <button onclick="exportJSON()">导出 JSON</button>
+    <input type="file" id="importFile" onchange="importJSON(event)" style="display:none;">
+    <button onclick="document.getElementById('importFile').click()">导入 JSON</button>
+  </div>
+
   <div class="container">
     <nav class="sidebar">
       <div class="loading">加载中...</div>
@@ -63,6 +66,7 @@
       </div>
     </section>
   </div>
+
   <div class="cart">
     <div class="cart-header">
       <strong>关键词购物车 (<span id="cartCount">0</span>)</strong>
@@ -73,151 +77,216 @@
     </div>
   </div>
 
-<script>
-// 新增关键词
-function addNewWord() {
-  const word = prompt("英文关键词：", "new tag");
-  if (!word) return;
-  const zh = prompt("中文翻译：", "");
-  const strength = prompt("强度（0.1-1.0）：", "0.8");
-  const img = prompt("图片 URL（可留空）：", "");
+  <script>
+    let treeData = null;
+    let currentPath = [];
+    let currentItems = [];
+    let cart = JSON.parse(localStorage.getItem('nsfw-cart') || '[]');
+    let copyCounts = JSON.parse(localStorage.getItem('nsfw-copies') || '{}');
 
-  const newItem = {
-    "词": word,
-    "强度": parseFloat(strength) || 0.8,
-    "图": img || "",
-    "复制": 0,
-    "词2": zh || ""
-  };
+    // 格式化次数
+    function formatCount(count) {
+      return count >= 1000 ? Math.floor(count / 1000) + 'k' : count;
+    }
 
-  // 添加到当前分类
-  let node = treeData;
-  currentPath.forEach(p => node = node[p]);
-  if (Array.isArray(node)) {
-    node.push(newItem);
-  } else {
-    alert("只能在末级分类添加！");
-    return;
-  }
+    // 加载 test-data.json
+    async function loadData() {
+      try {
+        const res = await fetch('test-data.json');
+        if (!res.ok) throw new Error('未找到 test-data.json');
+        treeData = await res.json();
+        document.querySelector('.sidebar .loading').style.display = 'none';
+        document.getElementById('navTree').style.display = 'block';
+        buildNav(treeData, document.getElementById('navTree'));
+        goTo([]);
+        renderCart();
+      } catch (e) {
+        document.querySelector('.sidebar').innerHTML = 
+          `<div style="color:red;padding:20px;">加载失败！<br>请确保 <code>test-data.json</code> 在同一目录。</div>`;
+      }
+    }
 
-  renderCards();
-}
+    // 导航树
+    function buildNav(node, parent, path=[]) {
+      Object.keys(node).forEach(key => {
+        const li = document.createElement('li');
+        const span = document.createElement('span');
+        span.className = 'folder';
+        span.innerHTML = `<i class="fas fa-folder"></i> ${key}`;
+        span.onclick = () => goTo([...path, key]);
+        li.appendChild(span);
+        if (typeof node[key] === 'object' && !Array.isArray(node[key])) {
+          const ul = document.createElement('ul');
+          ul.className = 'sub';
+          li.appendChild(ul);
+          buildNav(node[key], ul, [...path, key]);
+        }
+        parent.appendChild(li);
+      });
+    }
 
-// 删除关键词（长按卡片）
-let longPressTimer;
-function startLongPress(word) {
-  longPressTimer = setTimeout(() => {
-    if (confirm(`删除 "${word}"？`)) {
+    // 进入路径
+    function goTo(path) {
+      currentPath = path;
+      let node = treeData;
+      path.forEach(p => node = node[p]);
+      currentItems = Array.isArray(node) ? node.map(w => typeof w === 'string' ? {词:w} : w) : [];
+      renderCards();
+    }
+
+    // 渲染卡片
+    function renderCards() {
+      if (!treeData) return;
+      const order = document.getElementById('sortOrder').value;
+      const sorted = [...currentItems].sort((a,b) => {
+        const ca = copyCounts[a.词] || a.复制 || 0;
+        const cb = copyCounts[b.词] || b.复制 || 0;
+        return order === 'desc' ? cb - ca : ca - cb;
+      });
+
+      const grid = document.getElementById('cardGrid');
+      if (currentItems.length === 0) {
+        grid.innerHTML = '<div class="loading">请选择左侧分类</div>';
+        return;
+      }
+
+      grid.innerHTML = sorted.map(item => {
+        const word = item.词 || item;
+        const count = copyCounts[word] || item.复制 || 0;
+        const countStr = count > 0 ? `&lt;${formatCount(count)}&gt;` : '';
+        const title = `${word} ${countStr}`;
+        const subtitle = item.词2 || '暂无翻译';
+
+        return `
+          <div class="card">
+            ${item.图 ? `<img src="${item.图}" loading="lazy" onerror="this.src='https://via.placeholder.com/220x140?text=无图'">` : ''}
+            <div class="card-body">
+              <div class="card-title"
+                   onclick="editWord('${word}')"
+                   onmousedown="startLongPress('${word}')"
+                   onmouseup="cancelLongPress()"
+                   onmouseleave="cancelLongPress()">
+                ${title}
+              </div>
+              <div class="card-subtitle">${subtitle} · 强度: ${item.强度 || '-'}</div>
+              <div class="card-actions">
+                <button class="btn-copy" onclick="event.stopPropagation(); copyWord('${word}')"><i class="fas fa-copy"></i></button>
+                <button class="btn-cart" onclick="event.stopPropagation(); addToCart('${word}')"><i class="fas fa-plus"></i></button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // 复制关键词
+    function copyWord(word) {
+      navigator.clipboard.writeText(word);
+      copyCounts[word] = (copyCounts[word] || 0) + 1;
+      localStorage.setItem('nsfw-copies', JSON.stringify(copyCounts));
+      renderCards();
+      renderCart();
+    }
+
+    // 加入购物车
+    function addToCart(word) {
+      if (!cart.includes(word)) {
+        cart.push(word);
+        localStorage.setItem('nsfw-cart', JSON.stringify(cart));
+        renderCart();
+      }
+    }
+
+    // 渲染购物车
+    function renderCart() {
+      const container = document.getElementById('cartTags');
+      const count = document.getElementById('cartCount');
+      count.textContent = cart.length;
+      container.innerHTML = cart.length === 0 
+        ? '<span class="empty">暂无关键词</span>'
+        : cart.map(w => `<div class="tag">${w} <button onclick="removeFromCart('${w}')">x</button></div>`).join('');
+    }
+
+    // 增删改
+    function addNewWord() {
+      const word = prompt("英文关键词：", "new tag");
+      if (!word) return;
+      const zh = prompt("中文翻译：", "");
+      const strength = prompt("强度（0.1-1.0）：", "0.8");
+      const img = prompt("图片 URL（可留空）：", "");
+
+      const newItem = { "词": word, "强度": parseFloat(strength) || 0.8, "图": img || "", "复制": 0, "词2": zh || "" };
       let node = treeData;
       currentPath.forEach(p => node = node[p]);
       if (Array.isArray(node)) {
-        const idx = node.findIndex(item => (item.词 || item) === word);
-        if (idx > -1) node.splice(idx, 1);
+        node.push(newItem);
+        renderCards();
+      } else {
+        alert("只能在末级分类添加！");
       }
+    }
+
+    let longPressTimer;
+    function startLongPress(word) {
+      longPressTimer = setTimeout(() => {
+        if (confirm(`删除 "${word}"？`)) {
+          let node = treeData;
+          currentPath.forEach(p => node = node[p]);
+          if (Array.isArray(node)) {
+            const idx = node.findIndex(i => (i.词 || i) === word);
+            if (idx > -1) node.splice(idx, 1);
+          }
+          renderCards();
+        }
+      }, 800);
+    }
+    function cancelLongPress() { clearTimeout(longPressTimer); }
+
+    function editWord(word) {
+      const item = currentItems.find(i => (i.词 || i) === word);
+      if (!item || typeof item === 'string') return;
+      const newWord = prompt("修改关键词：", item.词);
+      if (newWord && newWord !== item.词) {
+        item.词 = newWord;
+        if (copyCounts[word]) { copyCounts[newWord] = copyCounts[word]; delete copyCounts[word]; }
+      }
+      const newZh = prompt("中文翻译：", item.词2 || "");
+      if (newZh !== null) item.词2 = newZh;
+      localStorage.setItem('nsfw-copies', JSON.stringify(copyCounts));
       renderCards();
     }
-  }, 800);
-}
-function cancelLongPress() {
-  clearTimeout(longPressTimer);
-}
 
-// 修改关键词（点击标题）
-function editWord(word) {
-  const item = currentItems.find(i => (i.词 || i) === word);
-  if (!item || typeof item === 'string') return;
-
-  const newWord = prompt("修改关键词：", item.词);
-  if (newWord && newWord !== item.词) {
-    item.词 = newWord;
-    if (copyCounts[word]) {
-      copyCounts[newWord] = copyCounts[word];
-      delete copyCounts[word];
-      localStorage.setItem('nsfw-copies', JSON.stringify(copyCounts));
-    }
-  }
-  const newZh = prompt("中文翻译：", item.词2 || "");
-  if (newZh !== null) item.词2 = newZh;
-  renderCards();
-}
-
-// 导出 JSON
-function exportJSON() {
-  const blob = new Blob([JSON.stringify(treeData, null, 2)], {type: 'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = 'test-data.json'; a.click();
-}
-
-// 导入 JSON
-function importJSON(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    try {
-      treeData = JSON.parse(ev.target.result);
-      buildNav(treeData, document.getElementById('navTree'));
-      goTo(currentPath);
-      alert('导入成功！');
-    } catch (err) {
-      alert('JSON 格式错误！');
-    }
-  };
-  reader.readAsText(file);
-}
-  
-  // 格式化次数
-  function formatCount(count) {
-    return count >= 1000 ? Math.floor(count / 1000) + 'k' : count;
-  }
-
-  // 渲染卡片（已适配新结构）
-  function renderCards() {
-    if (!treeData) return;
-    const order = document.getElementById('sortOrder').value;
-    const sorted = [...currentItems].sort((a,b) => {
-      const ca = copyCounts[a.词] || a.复制 || 0;
-      const cb = copyCounts[b.词] || b.复制 || 0;
-      return order === 'desc' ? cb - ca : ca - cb;
-    });
-
-    const grid = document.getElementById('cardGrid');
-    if (currentItems.length === 0) {
-      grid.innerHTML = '<div class="loading">请选择左侧分类</div>';
-      return;
+    function exportJSON() {
+      const blob = new Blob([JSON.stringify(treeData, null, 2)], {type: 'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'test-data.json'; a.click();
     }
 
-    grid.innerHTML = sorted.map(item => {
-      // 兼容新旧格式
-      const word = item.词 || item;
-      const count = copyCounts[word] || item.复制 || 0;
-      const countStr = count > 0 ? `&lt;${formatCount(count)}&gt;` : '';
-      const title = `${word} ${countStr}`;
-      const subtitle = item.词2 || '暂无翻译';
+    function importJSON(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        try {
+          treeData = JSON.parse(ev.target.result);
+          buildNav(treeData, document.getElementById('navTree'));
+          goTo(currentPath);
+          alert('导入成功！');
+        } catch { alert('JSON 格式错误！'); }
+      };
+      reader.readAsText(file);
+    }
 
-      return `
-      // 在 renderCards() 的 map 中替换卡片标题：
-<div class="card-title" 
-     onclick="editWord('${word}')" 
-     onmousedown="startLongPress('${word}')" 
-     onmouseup="cancelLongPress()" 
-     onmouseleave="cancelLongPress()"
-     style="cursor:pointer;">
-  ${title}
-</div>
-      `;
-    }).join('');
-  }
+    function removeFromCart(word) { cart = cart.filter(w => w !== word); localStorage.setItem('nsfw-cart', JSON.stringify(cart)); renderCart(); }
+    function clearCart() { cart = []; localStorage.setItem('nsfw-cart', JSON.stringify(cart)); renderCart(); }
+    function copyCart() {
+      if (cart.length === 0) return alert('购物车为空');
+      navigator.clipboard.writeText(cart.join(', '));
+      alert('已复制购物车！');
+    }
 
-  // 复制关键词（保持原逻辑）
-  function copyWord(word) {
-    navigator.clipboard.writeText(word);
-    copyCounts[word] = (copyCounts[word] || 0) + 1;
-    localStorage.setItem('nsfw-copies', JSON.stringify(copyCounts));
-    renderCards();
-    renderCart();
-  }
-</script>
+    // 初始化
+    loadData();
+  </script>
 </body>
 </html>
