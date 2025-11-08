@@ -34,6 +34,7 @@
     .btn-cart { background:#007bff; color:#fff; }
     .count-tag { color:#ff6b6b; font-size:0.8rem; }
     .loading { text-align:center; padding:40px; color:#666; }
+    .status { position:fixed; top:10px; right:10px; background:#28a745; color:#fff; padding:6px 12px; border-radius:20px; font-size:0.8rem; z-index:1000; }
     @media (max-width:768px) { .container { flex-direction:column; } .sidebar { width:100%; max-height:200px; } }
   </style>
 </head>
@@ -48,9 +49,11 @@
     <button onclick="document.getElementById('importFile').click()">导入 JSON</button>
   </div>
 
+  <div id="status" class="status" style="display:none;"></div>
+
   <div class="container">
     <nav class="sidebar">
-      <div class="loading">加载中...</div>
+      <div class="loading">云端加载中...</div>
       <ul id="navTree" style="display:none;"></ul>
     </nav>
     <section class="main">
@@ -78,35 +81,65 @@
   </div>
 
   <script>
+    // === JSONBin 配置 ===
+    const BIN_ID = '690f2ed2d0ea881f40db9bc3';
+    const MASTER_KEY = '$2a$10$ZR2SSvc5OOu.lIw3Q7XxpuLqrhmnr3nlQa9J7AW8LDxXqkKZuEC1y';
+
     let treeData = null;
     let currentPath = [];
     let currentItems = [];
     let cart = JSON.parse(localStorage.getItem('nsfw-cart') || '[]');
     let copyCounts = JSON.parse(localStorage.getItem('nsfw-copies') || '{}');
 
-    // 格式化次数
-    function formatCount(count) {
-      return count >= 1000 ? Math.floor(count / 1000) + 'k' : count;
+    // 显示状态
+    function showStatus(msg, isError = false) {
+      const el = document.getElementById('status');
+      el.textContent = msg;
+      el.style.background = isError ? '#dc3545' : '#28a745';
+      el.style.display = 'block';
+      setTimeout(() => el.style.display = 'none', 2000);
     }
 
-    // 加载 test-data.json
+    // === 云端加载 ===
     async function loadData() {
       try {
-        const res = await fetch('test-data.json');
-        if (!res.ok) throw new Error('未找到 test-data.json');
+        const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+          headers: { 'X-Master-Key': MASTER_KEY }
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         treeData = await res.json();
         document.querySelector('.sidebar .loading').style.display = 'none';
         document.getElementById('navTree').style.display = 'block';
         buildNav(treeData, document.getElementById('navTree'));
         goTo([]);
         renderCart();
+        showStatus('云端数据加载成功！');
       } catch (e) {
-        document.querySelector('.sidebar').innerHTML = 
-          `<div style="color:red;padding:20px;">加载失败！<br>请确保 <code>test-data.json</code> 在同一目录。</div>`;
+        showStatus('加载失败: ' + e.message, true);
+        console.error(e);
       }
     }
 
-    // 导航树
+    // === 云端保存 ===
+    async function saveData() {
+      try {
+        const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Master-Key': MASTER_KEY
+          },
+          body: JSON.stringify(treeData)
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        showStatus('已保存到云端！');
+      } catch (e) {
+        showStatus('保存失败: ' + e.message, true);
+        console.error(e);
+      }
+    }
+
+    // === 导航树 ===
     function buildNav(node, parent, path=[]) {
       Object.keys(node).forEach(key => {
         const li = document.createElement('li');
@@ -125,7 +158,6 @@
       });
     }
 
-    // 进入路径
     function goTo(path) {
       currentPath = path;
       let node = treeData;
@@ -134,7 +166,11 @@
       renderCards();
     }
 
-    // 渲染卡片
+    // === 渲染卡片 ===
+    function formatCount(count) {
+      return count >= 1000 ? Math.floor(count / 1000) + 'k' : count;
+    }
+
     function renderCards() {
       if (!treeData) return;
       const order = document.getElementById('sortOrder').value;
@@ -179,7 +215,7 @@
       }).join('');
     }
 
-    // 复制关键词
+    // === 复制 & 购物车 ===
     function copyWord(word) {
       navigator.clipboard.writeText(word);
       copyCounts[word] = (copyCounts[word] || 0) + 1;
@@ -188,7 +224,6 @@
       renderCart();
     }
 
-    // 加入购物车
     function addToCart(word) {
       if (!cart.includes(word)) {
         cart.push(word);
@@ -197,7 +232,6 @@
       }
     }
 
-    // 渲染购物车
     function renderCart() {
       const container = document.getElementById('cartTags');
       const count = document.getElementById('cartCount');
@@ -207,7 +241,7 @@
         : cart.map(w => `<div class="tag">${w} <button onclick="removeFromCart('${w}')">x</button></div>`).join('');
     }
 
-    // 增删改
+    // === 增删改 + 自动保存 ===
     function addNewWord() {
       const word = prompt("英文关键词：", "new tag");
       if (!word) return;
@@ -221,6 +255,7 @@
       if (Array.isArray(node)) {
         node.push(newItem);
         renderCards();
+        saveData();
       } else {
         alert("只能在末级分类添加！");
       }
@@ -237,6 +272,7 @@
             if (idx > -1) node.splice(idx, 1);
           }
           renderCards();
+          saveData();
         }
       }, 800);
     }
@@ -254,12 +290,14 @@
       if (newZh !== null) item.词2 = newZh;
       localStorage.setItem('nsfw-copies', JSON.stringify(copyCounts));
       renderCards();
+      saveData();
     }
 
+    // === 导出/导入 ===
     function exportJSON() {
       const blob = new Blob([JSON.stringify(treeData, null, 2)], {type: 'application/json'});
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = 'test-data.json'; a.click();
+      const a = document.createElement('a'); a.href = url; a.download = 'nsfw-data.json'; a.click();
     }
 
     function importJSON(e) {
@@ -271,7 +309,8 @@
           treeData = JSON.parse(ev.target.result);
           buildNav(treeData, document.getElementById('navTree'));
           goTo(currentPath);
-          alert('导入成功！');
+          saveData();
+          alert('导入并保存成功！');
         } catch { alert('JSON 格式错误！'); }
       };
       reader.readAsText(file);
@@ -285,7 +324,7 @@
       alert('已复制购物车！');
     }
 
-    // 初始化
+    // === 初始化 ===
     loadData();
   </script>
 </body>
