@@ -41,6 +41,7 @@
 <body>
   <div class="header">NSFW 关键词超市</div>
 
+  <!-- 顶部控制栏 -->
   <div class="controls" style="padding:10px; background:#1a1a1a; flex-wrap:wrap;">
     <button onclick="addNewWord()">新增关键词</button>
     <button onclick="exportJSON()">导出 JSON</button>
@@ -49,6 +50,31 @@
   </div>
 
   <div id="status" class="status" style="display:none;"></div>
+
+  <!-- 新增关键词弹窗（表格化） -->
+  <div id="addModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:1000; display:flex; align-items:center; justify-content:center;">
+    <div style="background:#1e1e1e; padding:24px; border-radius:12px; width:90%; max-width:420px; color:#eee;">
+      <h3 style="margin-bottom:16px;">新增 NSFW 关键词</h3>
+      <div style="display:grid; gap:12px;">
+        <input type="text" id="newWord" placeholder="英文关键词 (e.g., large breasts)" style="padding:10px; border-radius:6px; border:none; background:#333; color:#fff;">
+        <input type="text" id="newZh" placeholder="中文翻译 (e.g., 巨乳)" style="padding:10px; border-radius:6px; border:none; background:#333; color:#fff;">
+        <input type="number" id="newStrength" placeholder="强度 (0.1-1.0)" step="0.1" min="0" max="1" value="0.8" style="padding:10px; border-radius:6px; border:none; background:#333; color:#fff;">
+        <input type="number" id="newCopy" placeholder="初始复制数" value="0" style="padding:10px; border-radius:6px; border:none; background:#333; color:#fff;">
+        
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <input type="file" id="imgUpload" accept="image/*" style="color:#fff;">
+          <div id="imgPreview" style="height:100px; background:#333; border-radius:6px; overflow:hidden; display:flex; align-items:center; justify-content:center;">
+            <small style="color:#666;">预览将显示在这里</small>
+          </div>
+          <small style="color:#aaa; font-size:0.8rem;">上传到 Litterbox (免费、永久、支持 NSFW)</small>
+        </div>
+      </div>
+      <div style="display:flex; gap:12px; margin-top:20px;">
+        <button onclick="closeModal()" style="flex:1; padding:10px; background:#666; color:#fff; border:none; border-radius:6px;">取消</button>
+        <button onclick="confirmAdd()" style="flex:1; padding:10px; background:#007bff; color:#fff; border:none; border-radius:6px;">确认添加</button>
+      </div>
+    </div>
+  </div>
 
   <div class="container">
     <nav class="sidebar">
@@ -80,10 +106,9 @@
   </div>
 
   <script>
-    // === 你的专属配置 ===
+    // === 你的专属配置（替换这 2 行）===
     const BIN_ID = '690f2ed2d0ea881f40db9bc3';
     const MASTER_KEY = '$2a$10$xnT36sEdgvmYUqMghhjHuuDn.ErHF2gpSRxGohHLUJ5HUg8/Z3XEq';
-    const ACCESS_KEY = '$2a$10$ZR2SSvc5OOu.lIw3Q7XxpuLqrhmnr3nlQa9J7AW8LDxXqkKZuEC1y';
 
     let treeData = null;
     let currentPath = [];
@@ -103,10 +128,7 @@
     async function loadData() {
       try {
         const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-          headers: {
-            'X-Master-Key': MASTER_KEY,
-            'X-Access-Key': ACCESS_KEY
-          }
+          headers: { 'X-Master-Key': MASTER_KEY }
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         treeData = await res.json();
@@ -118,7 +140,6 @@
         showStatus('云端数据加载成功！');
       } catch (e) {
         showStatus('加载失败: ' + e.message, true);
-        console.error(e);
       }
     }
 
@@ -137,7 +158,95 @@
         showStatus('已保存到云端！');
       } catch (e) {
         showStatus('保存失败: ' + e.message, true);
-        console.error(e);
+      }
+    }
+
+    // === Litterbox 永久上传（极速 + 永久）===
+    async function uploadToLitterbox(file) {
+      if (!file) return '';
+      const form = new FormData();
+      form.append('fileToUpload', file);
+      // 不传 time → 永久保存
+
+      try {
+        const res = await fetch('https://litterbox.catbox.moe/resources/internals/api.php', {
+          method: 'POST',
+          body: form
+        });
+        const url = await res.text();
+        if (url.startsWith('https://files.catbox.moe/')) {
+          return url;
+        } else {
+          throw new Error(url);
+        }
+      } catch (e) {
+        alert('上传失败: ' + e.message);
+        return '';
+      }
+    }
+
+    // === 新增关键词弹窗 ===
+    function addNewWord() {
+      document.getElementById('addModal').style.display = 'flex';
+      document.getElementById('imgPreview').innerHTML = '<small style="color:#666;">预览将显示在这里</small>';
+      document.getElementById('newWord').value = '';
+      document.getElementById('newZh').value = '';
+      document.getElementById('newStrength').value = '0.8';
+      document.getElementById('newCopy').value = '0';
+      document.getElementById('imgUpload').value = '';
+    }
+
+    function closeModal() {
+      document.getElementById('addModal').style.display = 'none';
+    }
+
+    // 图片预览
+    document.getElementById('imgUpload').addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        document.getElementById('imgPreview').innerHTML = `<img src="${ev.target.result}" style="max-width:100%; max-height:100%; object-fit:contain;">`;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // 确认添加 + 上传图片
+    async function confirmAdd() {
+      const word = document.getElementById('newWord').value.trim();
+      const zh = document.getElementById('newZh').value.trim();
+      const strength = parseFloat(document.getElementById('newStrength').value) || 0.8;
+      const copy = parseInt(document.getElementById('newCopy').value) || 0;
+      const file = document.getElementById('imgUpload').files[0];
+
+      if (!word) return alert('关键词不能为空！');
+
+      let imgUrl = '';
+      if (file) {
+        showStatus('上传图片到 Litterbox...');
+        imgUrl = await uploadToLitterbox(file);
+        if (!imgUrl) return;
+        showStatus('图片上传成功！');
+      }
+
+      const newItem = {
+        "词": word,
+        "强度": strength,
+        "图": imgUrl,
+        "复制": copy,
+        "词2": zh
+      };
+
+      let node = treeData;
+      currentPath.forEach(p => node = node[p]);
+      if (Array.isArray(node)) {
+        node.push(newItem);
+        renderCards();
+        saveData();
+        closeModal();
+        showStatus('关键词添加成功！');
+      } else {
+        alert("只能在末级分类添加！");
       }
     }
 
@@ -241,26 +350,7 @@
         : cart.map(w => `<div class="tag">${w} <button onclick="removeFromCart('${w}')">x</button></div>`).join('');
     }
 
-    // === 增删改 + 自动保存 ===
-    function addNewWord() {
-      const word = prompt("英文关键词：", "new tag");
-      if (!word) return;
-      const zh = prompt("中文翻译：", "");
-      const strength = prompt("强度（0.1-1.0）：", "0.8");
-      const img = prompt("图片 URL（可留空）：", "");
-
-      const newItem = { "词": word, "强度": parseFloat(strength) || 0.8, "图": img || "", "复制": 0, "词2": zh || "" };
-      let node = treeData;
-      currentPath.forEach(p => node = node[p]);
-      if (Array.isArray(node)) {
-        node.push(newItem);
-        renderCards();
-        saveData();
-      } else {
-        alert("只能在末级分类添加！");
-      }
-    }
-
+    // === 长按删除 + 编辑 ===
     let longPressTimer;
     function startLongPress(word) {
       longPressTimer = setTimeout(() => {
