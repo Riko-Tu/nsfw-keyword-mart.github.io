@@ -241,92 +241,101 @@
     }
   };
 
-    // === 级联下拉框（始终显示 + 自动补全）===
-    function initCascadeSelects() {
-      const l1 = document.getElementById('level1');
-      const l2 = document.getElementById('level2');
-      const l3 = document.getElementById('level3');
+function initCascadeSelects() {
+  const l1 = document.getElementById('level1');
+  const l2 = document.getElementById('level2');
+  const l3 = document.getElementById('level3');
 
-      // 收集所有叶子路径
-      const leafPaths = [];
-      function collect(node, path = []) {
-        if (Array.isArray(node)) leafPaths.push([...path]);
-        else if (typeof node === 'object') {
-          for (const k in node) collect(node[k], [...path, k]);
-        }
-      }
-      collect(treeData);
+  // 清空
+  l1.innerHTML = '<option value="">一级标签</option>';
+  l2.innerHTML = '<option value="">二级标签</option>';
+  l3.innerHTML = '<option value="">三级标签</option>';
 
-      const level1Set = new Set(), level2Map = {}, level3Map = {};
+  // 收集所有叶子路径
+  const leafPaths = [];
+  function collect(node, path = []) {
+    if (Array.isArray(node)) leafPaths.push([...path]);
+    else if (typeof node === 'object') {
+      for (const k in node) collect(node[k], [...path, k]);
+    }
+  }
+  collect(treeData);
 
-      leafPaths.forEach(p => {
-        if (p[0]) level1Set.add(p[0]);
-        if (p[0] && p[1]) {
-          if (!level2Map[p[0]]) level2Map[p[0]] = new Set();
-          level2Map[p[0]].add(p[1]);
-        }
-        if (p[0] && p[1] && p[2]) {
-          const key = `${p[0]}|${p[1]}`;
-          if (!level3Map[key]) level3Map[key] = new Set();
-          level3Map[key].add(p[2]);
-        }
-      });
+  // 构建层级映射
+  const level1Set = new Set();
+幼儿园, level2Map = {}, level3Map = {};
 
-      // 填充一级
-      [...level1Set].sort().forEach(k => {
+  leafPaths.forEach(p => {
+    if (p[0]) level1Set.add(p[0]);
+    if (p[0] && p[1]) {
+      if (!level2Map[p[0]]) level2Map[p[0]] = new Set();
+      level2Map[p[0]].add(p[1]);
+    }
+    if (p[0] && p[1] && p[2]) {
+      const key = `${p[0]}|${p[1]}`;
+      if (!level3Map[key]) level3Map[key] = new Set();
+      level3Map[key].add(p[2]);
+    }
+  });
+
+  // 填充一级
+  [...level1Set].sort().forEach(k => {
+    const opt = document.createElement('option');
+    opt.value = k; opt.textContent = k;
+    l1.appendChild(opt);
+  });
+
+  // 更新二级
+  function updateL2() {
+    const v1 = l1.value;
+    l2.innerHTML = '<option value="">二级标签</option>';
+    if (v1 && level2Map[v1]) {
+      [...level2Map[v1]].sort().forEach(k => {
         const opt = document.createElement('option');
         opt.value = k; opt.textContent = k;
-        l1.appendChild(opt);
+        l2.appendChild(opt);
       });
-
-      // 填充二级
-      function updateL2() {
-        const v1 = l1.value;
-        l2.innerHTML = '<option value="">二级标签</option>';
-        if (v1 && level2Map[v1]) {
-          [...level2Map[v1]].sort().forEach(k => {
-            const opt = document.createElement('option');
-            opt.value = k; opt.textContent = k;
-            l2.appendChild(opt);
-          });
-        }
-      }
-
-      // 填充三级
-      function updateL3() {
-        const v1 = l1.value, v2 = l2.value;
-        l3.innerHTML = '<option value="">三级标签</option>';
-        if (v1 && v2) {
-          const key = `${v1}|${v2}`;
-          if (level3Map[key]) {
-            [...level3Map[key]].sort().forEach(k => {
-              const opt = document.createElement('option');
-              opt.value = k; opt.textContent = k;
-              l3.appendChild(opt);
-            });
-          }
-        }
-      }
-
-      l1.onchange = () => { updateL2(); updateL3(); };
-      l2.onchange = () => { updateL3(); };
-      l3.onchange = () => {
-        const v3 = l3.value;
-        if (!v3) return;
-        // 自动补全父层
-        for (const path of leafPaths) {
-          if (path[2] === v3) {
-            l1.value = path[0] || '';
-            updateL2();
-            l2.value = path[1] || '';
-            updateL3();
-            break;
-          }
-        }
-      };
-
-      updateL2(); updateL3();
     }
+  }
+
+  // 更新三级
+  function updateL3() {
+    const v1 = l1.value, v2 = l2.value;
+    l3.innerHTML = '<option value="">三级标签</option>';
+    if (v1 && v2 && level3Map[`${v1}|${v2}`]) {
+      [...level3Map[`${v1}|${v2}`]].sort().forEach(k => {
+        const opt = document.createElement('option');
+        opt.value = k; opt.textContent = k;
+        l3.appendChild(opt);
+      });
+    }
+  }
+
+  // 事件绑定
+  l1.onchange = () => { updateL2(); updateL3(); };
+  l2.onchange = () => { updateL3(); };
+
+  // 关键：选择三级 → 自动补全 + 填充
+  l3.onchange = () => {
+    const v3 = l3.value;
+    if (!v3) return;
+    for (const path of leafPaths) {
+      if (path[2] === v3) {
+        l1.value = path[0] || '';
+        updateL2();
+        l2.value = path[1] || '';
+        updateL3();
+        // 重新选中当前 v3
+        setTimeout(() => l3.value = v3, 0);
+        break;
+      }
+    }
+  };
+
+  // 初始化
+  updateL2();
+  updateL3();
+}
 
     // === 弹窗控制 ===
     function addNewWord() {
