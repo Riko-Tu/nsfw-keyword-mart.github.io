@@ -179,42 +179,48 @@
       }, 3000);
     }
 
-    // === 云端读写 ===
-    async function loadData() {
-      try {
-        const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, { headers: { 'X-Master-Key': MASTER_KEY } });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        treeData = await res.json();
-        document.querySelector('.sidebar .loading').style.display = 'none';
-        document.getElementById('navTree').style.display = 'block';
-        buildNav(treeData, document.getElementById('navTree'));
-        initCascadeSelects();
-        goTo([]);
-        renderCart();
-        showToast('云端数据加载成功！');
-
-        if (!hasAutoOpened) {
-          hasAutoOpened = true;
-          addNewWord();
-        }
-      } catch (e) {
-        showToast('加载失败: ' + e.message, 'error');
-      }
+    // === 修改 1：全局变量初始化时读取 record ===
+async function loadData() {
+  try {
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, { headers: { 'X-Master-Key': MASTER_KEY } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    treeData = data.record;  // <--- 关键修改
+    document.querySelector('.sidebar .loading').style.display = 'none';
+    document.getElementById('navTree').style.display = 'block';
+    buildNav(treeData, document.getElementById('navTree'));
+    initCascadeSelects();
+    goTo([]);
+    renderCart();
+    showToast('云端数据加载成功！');
+    if (!hasAutoOpened) {
+      hasAutoOpened = true;
+      addNewWord();
     }
+  } catch (e) {
+    showToast('加载失败: ' + e.message, 'error');
+  }
+  // 自动展开第一个一级标签
+setTimeout(() => {
+  const firstToggle = document.querySelector('.sidebar .folder > i.fa-chevron-right');
+  if (firstToggle) firstToggle.parentElement.click();
+}, 100)
+}
 
-    async function saveData() {
-      try {
-        const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'X-Master-Key': MASTER_KEY },
-          body: JSON.stringify(treeData)
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        showToast('已保存到云端！');
-      } catch (e) {
-        showToast('保存失败: ' + e.message, 'error');
-      }
-    }
+  // === 修改 2：保存时写回 record 结构 ===
+async function saveData() {
+  try {
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Master-Key': MASTER_KEY },
+      body: JSON.stringify({ record: treeData })  // <--- 关键修改
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    showToast('已保存到云端！');
+  } catch (e) {
+    showToast('保存失败: ' + e.message, 'error');
+  }
+}
 
     // === 稳定上传 ===
     async function uploadToLitterbox(file) {
@@ -371,24 +377,62 @@
       showToast('关键词添加成功！');
     }
 
-    // === 其余函数 ===
-    function buildNav(node, parent, path=[]) {
-      Object.keys(node).forEach(key => {
-        const li = document.createElement('li');
-        const span = document.createElement('span');
-        span.className = 'folder';
-        span.innerHTML = `<i class="fas fa-folder"></i> ${key}`;
-        span.onclick = () => goTo([...path, key]);
-        li.appendChild(span);
-        if (typeof node[key] === 'object' && !Array.isArray(node[key])) {
-          const ul = document.createElement('ul');
-          ul.className = 'sub';
-          li.appendChild(ul);
-          buildNav(node[key], ul, [...path, key]);
-        }
-        parent.appendChild(li);
-      });
+// === 修改 3：buildNav 支持折叠（仅一级）===
+function buildNav(node, parent, path = []) {
+  Object.keys(node).forEach((key, idx) => {
+    const li = document.createElement('li');
+    const isTopLevel = path.length === 0;
+
+    if (isTopLevel) {
+      // 一级标签：可折叠
+      const toggle = document.createElement('i');
+      toggle.className = 'fas fa-chevron-right';
+      toggle.style.transition = 'transform 0.2s';
+      toggle.style.marginRight = '6px';
+      toggle.style.fontSize = '0.8rem';
+
+      const span = document.createElement('span');
+      span.className = 'folder';
+      span.style.alignItems = 'center';
+      span.innerHTML = `${key}`;
+      span.onclick = (e) => {
+        e.stopPropagation();
+        const ul = li.querySelector('ul');
+        const isOpen = ul.style.display === 'block';
+        ul.style.display = isOpen ? 'none' : 'block';
+        toggle.className = isOpen ? 'fas fa-chevron-right' : 'fas fa-chevron-down';
+      };
+      span.insertBefore(toggle, span.firstChild);
+
+      li.appendChild(span);
+
+      const ul = document.createElement('ul');
+      ul.className = 'sub';
+      ul.style.display = 'none';  // 默认收起
+      ul.style.marginLeft = '20px';
+      ul.style.borderLeft = '1px dashed #444';
+      ul.style.paddingLeft = '12px';
+      li.appendChild(ul);
+      buildNav(node[key], ul, [...path, key]);
+    } else {
+      // 二级及以下：原逻辑（不可折叠）
+      const span = document.createElement('span');
+      span.className = 'folder';
+      span.innerHTML = `<i class="fas fa-folder"></i> ${key}`;
+      span.onclick = () => goTo([...path, key]);
+      li.appendChild(span);
+
+      if (typeof node[key] === 'object' && !Array.isArray(node[key])) {
+        const ul = document.createElement('ul');
+        ul.className = 'sub';
+        li.appendChild(ul);
+        buildNav(node[key], ul, [...path, key]);
+      }
     }
+
+    parent.appendChild(li);
+  });
+}
 
     function goTo(path) {
       currentPath = path;
