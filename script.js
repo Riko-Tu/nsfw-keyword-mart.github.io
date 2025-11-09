@@ -31,7 +31,14 @@ const Data = {
         };
       }
 
-      this.local = data;
+  let record = json.record;
+
+// 防止 record 为 null/undefined/非对象
+if (!record || typeof record !== 'object' || Array.isArray(record)) {
+  record = Array.isArray(record) ? { "导入数据": { "默认分类": record.map(w => ({词: w.词||w, 词2: w.词2||'', 强度: w.强度||0.8, 图: w.图||'', 复制: w.复制||0})) } } : {};
+}
+
+this.local = record;
       UI.refresh();
       Toast.show('云端数据已加载');
     } catch (e) { 
