@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>NSFW 关键词超市（AI Prompt 工作台）</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://api.jsonbin.io; script-src 'self' 'unsafe-inline';">
+  <!-- 移除 CSP，允许 inline style -->
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body { font-family: 'Segoe UI', sans-serif; background:#111; color:#eee; }
@@ -155,38 +155,40 @@
 
   <script>
     // ====================== 核心模块 ======================
-    const BIN_ID = '690f2ed2d0ea881f40db9bc3';
-    const MASTER_KEY = '$2a$10$xnT36sEdgvmYUqMghhjHuuDn.ErHF2gpSRxGohHLUJ5HUg8/Z3XEq';
+    const BIN_ID = '690f2ed2d0ea881f40db9bc3';  // 请确认这个 ID 是否正确
+    const MASTER_KEY = '$2a$10$xnT36sEdgvmYUqMghhjHuuDn.ErHF2gpSRxGohHLUJ5HUg8/Z3XEq';  // 请确认这个 Key 是否有效
 
     const Data = {
       local: {},
       async load() {
-        console.log('Data.load() 开始');
+        console.log('Data.load() 开始，BIN_ID:', BIN_ID);
         const loadingEl = document.querySelector('.sidebar .loading');
         const navTree = document.getElementById('navTree');
         try {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 10000);
           const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
             method: 'GET',
-            headers: { 'X-Master-Key': MASTER_KEY, 'Content-Type': 'application/json' },
-            signal: controller.signal,
+            headers: { 'X-Master-Key': MASTER_KEY },
             cache: 'no-cache'
           });
-          clearTimeout(timeout);
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          if (!res.ok) {
+            const text = await res.text();
+            throw new Error(`HTTP ${res.status}: ${text}`);
+          }
           const json = await res.json();
-          console.log('真实 JSONBin 返回:', json);
+          console.log('JSONBin 返回:', json);
           const record = json.record || {};
           this.local = typeof record === 'object' && !Array.isArray(record) ? record : {};
           console.log('成功加载 this.local:', this.local);
+
+          // 隐藏 loading
           if (loadingEl) loadingEl.style.display = 'none';
           if (navTree) navTree.style.display = 'block';
+
           UI.refresh();
           Toast.show('云端数据已加载');
         } catch (e) {
           console.error('加载失败:', e);
-          Toast.error('网络错误，请关闭广告拦截器');
+          Toast.error('加载失败: ' + e.message);
           this.local = {};
           if (loadingEl) loadingEl.textContent = '加载失败';
           UI.refresh();
@@ -194,11 +196,12 @@
       },
       async sync() {
         try {
-          await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+          const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'X-Master-Key': MASTER_KEY },
             body: JSON.stringify({ record: this.local })
           });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
           Toast.show('已同步到云端');
         } catch (e) {
           Toast.error('同步失败: ' + e.message);
@@ -238,9 +241,8 @@
         const path = [l1]; if (l2) path.push(l2);
         let node = this.local;
         for (let i = 0; i < path.length - 1; i++) {
-          const k = path[i];
-          node[k] = node[k] || {};
-          node = node[k];
+          node[path[i]] = node[path[i]] || {};
+          node = node[path[i]];
         }
         const target = path[path.length - 1];
         node[target] = node[target] || [];
@@ -257,27 +259,33 @@
     const UI = {
       currentPath: [], currentItems: [],
       refresh() {
-        console.log('UI.refresh() 开始');
         const navTree = document.getElementById('navTree');
         navTree.innerHTML = '';
-        if (!Data.local || typeof Data.local !== 'object' || Object.keys(Data.local).length === 0) {
-          navTree.innerHTML = '<div style="padding:16px;color:#aaa;">暂无分类（可新增）</div>';
+        if (!Data.local || Object.keys(Data.local).length === 0) {
+          navTree.innerHTML = '<div style="padding:16px;color:#aaa;">暂无分类</div>';
         } else {
           DOM.buildNav(Data.local, navTree);
         }
         this.initCascade();
         this.goTo([]);
-        console.log('UI.refresh() 完成');
       },
       initCascade() {
         const paths = this.collectPaths();
-        DOM.level1.innerHTML = '<option value="">一级标签</option>';
-        DOM.level2.innerHTML = '<option value="">二级标签</option>';
-        paths.l1.forEach(k => DOM.addOption(DOM.level1, k, k));
-        DOM.level1.onchange = () => {
-          const v1 = DOM.level1.value;
-          DOM.level2.innerHTML = '<option value="">二级标签</option>';
-          if (v1 && paths.l2[v1]) paths.l2[v1].forEach(k => DOM.addOption(DOM.level2, k, k));
+        const l1 = document.getElementById('level1');
+        const l2 = document.getElementById('level2');
+        l1.innerHTML = '<option value="">一级标签</option>';
+        l2.innerHTML = '<option value="">二级标签</option>';
+        paths.l1.forEach(k => {
+          const o = document.createElement('option');
+          o.value = k; o.textContent = k; l1.appendChild(o);
+        });
+        l1.onchange = () => {
+          const v1 = l1.value;
+          l2.innerHTML = '<option value="">二级标签</option>';
+          if (v1 && paths.l2[v1]) paths.l2[v1].forEach(k => {
+            const o = document.createElement('option');
+            o.value = k; o.textContent = k; l2.appendChild(o);
+          });
         };
       },
       collectPaths() {
@@ -302,20 +310,21 @@
       goTo(path) {
         this.currentPath = path; let node = Data.local;
         for (const p of path) {
-          if (!node || typeof node !== 'object' || !(p in node)) { this.currentItems = []; this.renderCards(); return; }
+          if (!node || !(p in node)) { this.currentItems = []; this.renderCards(); return; }
           node = node[p];
         }
         this.currentItems = Array.isArray(node) ? node.map(w => typeof w === 'string' ? {词: w} : w) : [];
         this.renderCards();
       },
       renderCards() {
-        const order = DOM.sortOrder.value;
+        const order = document.getElementById('sortOrder').value;
         const sorted = [...this.currentItems].sort((a, b) => {
           const ca = Storage.copy[a.词] || a.复制 || 0;
           const cb = Storage.copy[b.词] || b.复制 || 0;
           return order === 'desc' ? cb - ca : ca - cb;
         });
-        DOM.cardGrid.innerHTML = sorted.length ? sorted.map(item => {
+        const grid = document.getElementById('cardGrid');
+        grid.innerHTML = sorted.length ? sorted.map(item => {
           const word = item.词 || item;
           const count = Storage.copy[word] || item.复制 || 0;
           const img = item.图 ? item.图.replace(/\/[^/]+$/, '/medium/$&') : '';
@@ -332,7 +341,7 @@
           </div>`;
         }).join('') : '<div class="loading">请选择左侧分类</div>';
       },
-      openAddModal() { DOM.addModal.style.display = 'flex'; this.initCascade(); },
+      openAddModal() { document.getElementById('addModal').style.display = 'flex'; this.initCascade(); },
       closeModal(id) { document.getElementById(id).style.display = 'none'; }
     };
 
@@ -345,7 +354,7 @@
       remove(i) { Storage.cart.splice(i, 1); Storage.saveCart(); Cart.renderList(); Cart.updateCount(); },
       clear() { Storage.cart = []; Storage.saveCart(); Cart.renderList(); Cart.updateCount(); Toast.show('购物车已清空'); },
       copyAll() {
-        if (!Storage.cart.length) return Toast.show('购物空');
+        if (!Storage.cart.length) return Toast.show('购物车为空');
         navigator.clipboard.writeText(Storage.cart.join(', ')).then(() => { Cart.recordHistory(); Toast.show(`已复制 ${Storage.cart.length} 个`); });
       },
       recordHistory() {
@@ -356,21 +365,26 @@
       saveToHistory() { if (Storage.cart.length) { Cart.recordHistory(); Toast.show('已加入历史'); } },
       clearHistory() { if (confirm('清空历史？')) { Storage.history = []; Storage.saveHistory(); Cart.renderList(); Toast.show('历史已清空'); } },
       toggle() {
-        const panel = DOM.cartPanel, body = DOM.cartBody, actions = DOM.cartActions, mid = DOM.midActions, arrow = DOM.cartArrow;
+        const panel = document.getElementById('cartPanel');
+        const body = document.getElementById('cartBody');
+        const actions = document.getElementById('cartActions');
+        const mid = document.getElementById('midActions');
+        const arrow = document.getElementById('cartArrow');
         const expanded = body.style.display === 'block';
         panel.style.height = expanded ? '50px' : '60vh';
         [body, actions, mid].forEach(el => el.style.display = expanded ? 'none' : 'block');
         arrow.className = expanded ? 'fas fa-chevron-up' : 'fas fa-chevron-down';
         if (!expanded) Cart.renderList();
       },
-      toggleHistory() { event.stopPropagation(); DOM.historySection.style.display = DOM.historySection.style.display === 'none' ? 'block' : 'none'; },
-      openDraw() { event.stopPropagation(); DOM.drawModal.style.display = 'flex'; Cart.renderDrawTags(); },
+      toggleHistory() { event.stopPropagation(); const s = document.getElementById('historySection'); s.style.display = s.style.display === 'none' ? 'block' : 'none'; },
+      openDraw() { event.stopPropagation(); document.getElementById('drawModal').style.display = 'flex'; Cart.renderDrawTags(); },
       renderDrawTags() {
         const paths = [];
         for (const cat in Data.local) for (const group in Data.local[cat]) {
           if (Array.isArray(Data.local[cat][group]) && Data.local[cat][group].length) paths.push({cat, group});
         }
-        DOM.drawTags.innerHTML = paths.map(p => `
+        const tags = document.getElementById('drawTags');
+        tags.innerHTML = paths.map(p => `
           <div style="display:flex; align-items:center; padding:8px; background:#222; border-radius:6px; margin-bottom:6px;">
             <input type="checkbox" value="${p.cat}>${p.group}">
             <label style="flex:1;">${p.cat} > ${p.group} (${Data.local[p.cat][p.group].length}词)</label>
@@ -378,7 +392,7 @@
         `).join('');
       },
       drawWord() {
-        const checked = Array.from(DOM.drawTags.querySelectorAll('input:checked'));
+        const checked = Array.from(document.querySelectorAll('#drawTags input:checked'));
         if (!checked.length) return Toast.error('请选择标签');
         const candidates = [];
         checked.forEach(cb => {
@@ -387,22 +401,22 @@
         });
         if (!candidates.length) return Toast.error('无词可抽');
         const word = candidates[Math.floor(Math.random() * candidates.length)];
-        DOM.drawResult.innerHTML = `${word}`;
-        DOM.drawResult.style.animation = 'pulse 0.5s';
-        setTimeout(() => DOM.drawResult.style.animation = '', 500);
+        document.getElementById('drawResult').innerHTML = `${word}`;
         Cart.add(word);
       },
-      updateCount() { DOM.cartCount.textContent = Storage.cart.length; },
+      updateCount() { document.getElementById('cartCount').textContent = Storage.cart.length; },
       renderList() {
-        const list = DOM.cartList, hist = DOM.cartHistoryList, sec = DOM.historySection;
+        const list = document.getElementById('cartList');
+        const hist = document.getElementById('cartHistoryList');
+        const sec = document.getElementById('historySection');
         list.innerHTML = Storage.cart.length ? Storage.cart.map((w, i) => {
           const item = Cart.findItem(w);
-          return `<div class="cart-item"><div class="word">${w}</div><div class="zh">${item?.词2 || '无'}</div><span class="remove" onclick="Cart.remove(${i})">×</span></div>`;
+          return `<div class="cart-item"><div class="word">${w}</div><div class="zh">${item?.词2 || '无'}</div><span class="remove" onclick="Cart.remove(${i})">x</span></div>`;
         }).join('') : '<div style="text-align:center;color:#666;padding:20px;">购物车为空</div>';
         sec.style.display = Storage.history.length ? 'block' : 'none';
         hist.innerHTML = Storage.history.map(h => `<div class="cart-history-item"><div class="time">${h.time}</div><div style="margin-top:2px;color:#ccc;">${h.items.join(', ')}</div></div>`).join('');
       },
-      updateUI() { Cart.updateCount(); if (DOM.cartBody.style.display === 'block') Cart.renderList(); },
+      updateUI() { Cart.updateCount(); if (document.getElementById('cartBody').style.display === 'block') Cart.renderList(); },
       findItem(word) {
         for (const cat in Data.local) for (const group in Data.local[cat]) {
           const arr = Data.local[cat][group];
@@ -430,29 +444,20 @@
     };
 
     const DOM = {
-      navTree: document.getElementById('navTree'), cardGrid: document.getElementById('cardGrid'),
-      sortOrder: document.getElementById('sortOrder'), level1: document.getElementById('level1'),
-      level2: document.getElementById('level2'), addModal: document.getElementById('addModal'),
-      drawModal: document.getElementById('drawModal'), drawTags: document.getElementById('drawTags'),
-      drawResult: document.getElementById('drawResult'), cartPanel: document.getElementById('cartPanel'),
-      cartBody: document.getElementById('cartBody'), cartActions: document.getElementById('cartActions'),
-      midActions: document.getElementById('midActions'), cartArrow: document.getElementById('cartArrow'),
-      cartCount: document.getElementById('cartCount'), cartList: document.getElementById('cartList'),
-      historySection: document.getElementById('historySection'), cartHistoryList: document.getElementById('cartHistoryList'),
-      addOption(parent, value, text) {
-        const o = document.createElement('option'); o.value = value; o.textContent = text; parent.appendChild(o);
-      },
       buildNav(node, parent, path = []) {
         if (!node || typeof node !== 'object' || Array.isArray(node)) return;
         Object.keys(node).forEach(key => {
           const li = document.createElement('li');
           const span = document.createElement('span');
-          span.className = 'folder'; span.innerHTML = `<i class="fas fa-folder"></i> ${key}`;
+          span.className = 'folder';
+          span.innerHTML = `<i class="fas fa-folder"></i> ${key}`;
           span.onclick = () => UI.goTo([...path, key]);
           li.appendChild(span);
           const child = node[key];
           if (child && typeof child === 'object' && !Array.isArray(child)) {
-            const ul = document.createElement('ul'); ul.className = 'sub'; li.appendChild(ul);
+            const ul = document.createElement('ul');
+            ul.className = 'sub';
+            li.appendChild(ul);
             DOM.buildNav(child, ul, [...path, key]);
           }
           parent.appendChild(li);
@@ -466,7 +471,8 @@
       create(msg, type) {
         const t = document.createElement('div');
         t.className = `toast ${type === 'error' ? 'error' : ''}`;
-        t.textContent = msg; document.body.appendChild(t);
+        t.textContent = msg;
+        document.body.appendChild(t);
         requestAnimationFrame(() => { t.style.opacity = 1; t.style.transform = 'translateX(0)'; });
         setTimeout(() => {
           t.style.opacity = 0; t.style.transform = 'translateX(100%)';
@@ -478,8 +484,7 @@
     // 初始化
     document.getElementById('btnSelectImg').onclick = () => document.getElementById('imgUpload').click();
     document.getElementById('imgUpload').onchange = e => {
-      const file = e.target.files[0];
-      if (file) document.getElementById('btnUploadImg').disabled = false;
+      if (e.target.files[0]) document.getElementById('btnUploadImg').disabled = false;
     };
     document.getElementById('btnUploadImg').onclick = async () => {
       const file = document.getElementById('imgUpload').files[0];
