@@ -5,15 +5,18 @@ const MASTER_KEY = '$2a$10$xnT36sEdgvmYUqMghhjHuuDn.ErHF2gpSRxGohHLUJ5HUg8/Z3XEq
 // ---------- Data ----------
 const Data = {
   local: {},
-  async load() {
+ async load() {
+  console.log('Data.load() 开始执行');
   try {
     const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
       headers: { 'X-Master-Key': MASTER_KEY }
     });
     const json = await res.json();
+    console.log('JSONBin 返回原始数据:', json);
 
     // 关键修复：安全提取 record
     let record = json.record;
+    console.log('提取 record:', record);
 
     // 防止 record 为 null/undefined
     if (record === null || record === undefined) {
@@ -35,20 +38,23 @@ const Data = {
           }))
         }
       };
+      console.log('数组转换后 record:', record);
     }
 
     // 确保是对象
     if (typeof record !== 'object' || Array.isArray(record)) {
+      console.error('record 不是有效对象，强制初始化');
       record = {};
     }
 
     this.local = record;
+    console.log('最终 this.local:', this.local);
+
     UI.refresh();
     Toast.show('云端数据已加载');
   } catch (e) {
+    console.error('Data.load() 失败:', e);
     Toast.error('加载失败: ' + e.message);
-    console.error(e);
-    // 即使失败也初始化空结构
     this.local = {};
     UI.refresh();
   }
@@ -139,12 +145,24 @@ const Data = {
 const UI = {
   currentPath: [], 
   currentItems: [],
-  refresh() { 
-    DOM.navTree.innerHTML = ''; 
-    DOM.buildNav(Data.local, DOM.navTree); 
-    this.initCascade(); 
-    this.goTo([]); 
-  },
+refresh() {
+  console.log('UI.refresh() 开始，Data.local:', Data.local);
+  DOM.navTree.innerHTML = '';
+
+  // 安全检查
+  if (!Data.local || typeof Data.local !== 'object' || Data.local === null) {
+    console.warn('Data.local 无效，显示提示');
+    DOM.navTree.innerHTML = '<div style="padding:16px; color:#aaa;">数据加载中或为空</div>';
+    DOM.cardGrid.innerHTML = '<div class="loading">请等待数据加载</div>';
+    return;
+  }
+
+  console.log('开始构建导航树...');
+  DOM.buildNav(Data.local, DOM.navTree);
+  this.initCascade();
+  this.goTo([]);
+  console.log('UI.refresh() 完成');
+},
   initCascade() {
     const paths = this.collectPaths();
     DOM.level1.innerHTML = '<option value="">一级标签</option>';
@@ -156,23 +174,39 @@ const UI = {
       if (v1 && paths.l2[v1]) paths.l2[v1].forEach(k => DOM.addOption(DOM.level2, k, k));
     };
   },
-  collectPaths() {
-    const l1 = new Set(), l2 = {};
-    const walk = (node, path) => {
-      if (Array.isArray(node) && path.length >= 2) { 
-        l1.add(path[0]); 
-        l2[path[0]] = l2[path[0]] || new Set(); 
-        l2[path[0]].add(path[1]); 
-      } else if (typeof node === 'object' && node) {
-        for (const k in node) walk(node[k], [...path, k]);
+collectPaths() {
+  console.log('UI.collectPaths() 开始，Data.local:', Data.local);
+  const l1 = new Set(), l2 = {};
+  const walk = (node, path = []) => {
+    console.log(`walk() 调用，node:`, node, `path:`, path);
+
+    // 安全检查
+    if (!node || typeof node !== 'object' || node === null) {
+      console.log('node 无效，跳过');
+      return;
+    }
+
+    if (Array.isArray(node) && path.length >= 2) {
+      console.log(`发现数组分类: ${path[0]} > ${path[1]}`);
+      l1.add(path[0]);
+      l2[path[0]] = l2[path[0]] || new Set();
+      l2[path[0]].add(path[1]);
+    } else {
+      for (const k in node) {
+        if (Object.hasOwnProperty.call(node, k)) {
+          console.log(`遍历子节点: ${k}`);
+          walk(node[k], [...path, k]);
+        }
       }
-    };
-    walk(Data.local); 
-    return { 
-      l1: [...l1].sort(), 
-      l2: Object.fromEntries(Object.entries(l2).map(([k, v]) => [k, [...v].sort()])) 
-    };
-  },
+    }
+  };
+  walk(Data.local);
+  console.log('collectPaths 结果:', { l1: [...l1], l2 });
+  return {
+    l1: [...l1].sort(),
+    l2: Object.fromEntries(Object.entries(l2).map(([k, v]) => [k, [...v].sort()]))
+  };
+},
   goTo(path) {
     this.currentPath = path;
     let node = Data.local;
