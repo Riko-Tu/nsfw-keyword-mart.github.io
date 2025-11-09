@@ -175,45 +175,67 @@ refresh() {
     };
   },
 collectPaths() {
-  console.log('UI.collectPaths() 开始，Data.local:', Data.local);
+  console.log('collectPaths 开始，Data.local:', Data.local);
   const l1 = new Set(), l2 = {};
+  
   const walk = (node, path = []) => {
-    console.log(`walk() 调用，node:`, node, `path:`, path);
-
-    // 安全检查
-    if (!node || typeof node !== 'object' || node === null) {
-      console.log('node 无效，跳过');
+    // 防护 1：node 必须是对象或数组
+    if (!node || typeof node !== 'object') {
+      console.log('node 无效，跳过:', node);
       return;
     }
 
+    // 防护 2：如果是数组且路径够深，收集
     if (Array.isArray(node) && path.length >= 2) {
-      console.log(`发现数组分类: ${path[0]} > ${path[1]}`);
-      l1.add(path[0]);
-      l2[path[0]] = l2[path[0]] || new Set();
-      l2[path[0]].add(path[1]);
-    } else {
-      for (const k in node) {
-        if (Object.hasOwnProperty.call(node, k)) {
-          console.log(`遍历子节点: ${k}`);
-          walk(node[k], [...path, k]);
+      const cat = path[0], group = path[1];
+      if (cat && group) {
+        l1.add(cat);
+        l2[cat] = l2[cat] || new Set();
+        l2[cat].add(group);
+      }
+      return;
+    }
+
+    // 防护 3：安全遍历对象键
+    for (const k in node) {
+      if (Object.hasOwnProperty.call(node, k)) {
+        const child = node[k];
+        if (child && typeof child === 'object') {
+          walk(child, [...path, k]);
         }
       }
     }
   };
+
   walk(Data.local);
   console.log('collectPaths 结果:', { l1: [...l1], l2 });
   return {
     l1: [...l1].sort(),
-    l2: Object.fromEntries(Object.entries(l2).map(([k, v]) => [k, [...v].sort()]))
+    l2: Object.fromEntries(
+      Object.entries(l2).map(([k, v]) => [k, [...v].sort()])
+    )
   };
 },
-  goTo(path) {
-    this.currentPath = path;
-    let node = Data.local;
-    path.forEach(p => node = node[p]);
-    this.currentItems = Array.isArray(node) ? node.map(w => typeof w === 'string' ? {词: w} : w) : [];
-    this.renderCards();
-  },
+goTo(path) {
+  this.currentPath = path;
+  let node = Data.local;
+
+  // 安全遍历路径
+  for (const p of path) {
+    if (!node || typeof node !== 'object' || !(p in node)) {
+      console.warn('路径中断:', path, '当前节点:', node);
+      this.currentItems = [];
+      this.renderCards();
+      return;
+    }
+    node = node[p];
+  }
+
+  this.currentItems = Array.isArray(node) 
+    ? node.map(w => typeof w === 'string' ? {词: w} : w) 
+    : [];
+  this.renderCards();
+},
   renderCards() {
     const order = DOM.sortOrder.value;
     const sorted = [...this.currentItems].sort((a, b) => {
