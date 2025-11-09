@@ -216,21 +216,34 @@
       }
     }
 
-    // === 稳定上传 ===
-    async function uploadToLitterbox(file) {
-      const form = new FormData();
-      form.append('reqtype', 'fileupload');
-      form.append('fileToUpload', file);
-      const res = await fetch('https://catbox.moe/user/api.php', {
-        method: 'POST',
-        body: form,
-        headers: { 'User-Agent': 'Mozilla/5.0' }
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const url = await res.text();
-      if (url.startsWith('https://files.catbox.moe/')) return url;
-      throw new Error(url || '上传失败');
+// === 新增：ImgBB 上传函数 ===
+async function uploadToImgBB(file) {
+  const API_KEY = '8b0e3ebbc4daeefefdd00b0a6002ef4a'; // 你原来的 Key（但建议换新！）
+  
+  const form = new FormData();
+  form.append('image', file);
+
+  try {
+    const res = await fetch(`https://api.imgbb.com/1/upload?key=${API_KEY}`, {
+      method: 'POST',
+      body: form,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const data = await res.json();
+    if (data.success && data.data && data.data.url) {
+      return data.data.url; // 原始大图
+      // return data.data.medium.url; // 中等图（更小更快）
     }
+    throw new Error(data.error?.message || '上传失败');
+  } catch (e) {
+    throw new Error('ImgBB 上传失败: ' + e.message);
+  }
+}
 
     // === 级联标签 ===
     function initCascadeSelects() {
@@ -312,20 +325,28 @@
     document.getElementById('btnSelectImg').onclick = () => document.getElementById('imgUpload').click();
     document.getElementById('imgUpload').onchange = e => { selectedFile = e.target.files[0]; if (selectedFile) document.getElementById('btnUploadImg').disabled = false; };
 
-    document.getElementById('btnUploadImg').onclick = async () => {
-      if (!selectedFile) return;
-      const btn = document.getElementById('btnUploadImg');
-      btn.disabled = true; btn.textContent = '上传中...';
-      try {
-        uploadedUrl = await uploadToLitterbox(selectedFile);
-        document.getElementById('imgPreview').innerHTML = `<img src="${uploadedUrl}">`;
-        showToast('上传成功！');
-        btn.textContent = '已获取';
-      } catch (e) {
-        showToast(e.message, 'error');
-        btn.textContent = '获取 URL'; btn.disabled = false;
-      }
-    };
+document.getElementById('btnUploadImg').onclick = async () => {
+  if (!selectedFile) return;
+
+  const btn = document.getElementById('btnUploadImg');
+  btn.disabled = true;
+  btn.textContent = '上传中...';
+
+  try {
+    uploadedUrl = await uploadToImgBB(selectedFile);
+    
+    // 预览图（用中等图更快）
+    const mediumUrl = uploadedUrl.replace(/\/[^/]+$/, '/medium/$&').replace('.jpg', '.jpg');
+    document.getElementById('imgPreview').innerHTML = `<img src="${mediumUrl}" style="max-height:140px;">`;
+    
+    showToast('ImgBB 上传成功！');
+    btn.textContent = '已获取';
+  } catch (e) {
+    showToast(e.message, 'error');
+    btn.textContent = '重新上传';
+    btn.disabled = false;
+  }
+};
 
     // === 正确添加逻辑：最后一级就是数组！===
     function confirmAdd() {
