@@ -7,495 +7,837 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family: 'Segoe UI', sans-serif; background:#0f0f0f; color:#eee; display:flex; flex-direction:column; height:100vh; overflow:hidden; }
-    .header { padding:16px; background:#1a1a1a; text-align:center; font-size:1.5rem; border-bottom:1px solid #333; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background:#0f0f0f;
+      color:#eee;
+      height:100vh;
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+    }
+
+    /* 顶部 */
+    .header {
+      padding:16px 20px;
+      background:#1a1a1a;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      border-bottom:1px solid #333;
+      flex-shrink:0;
+    }
+    .header h1 { font-size:1.5rem; font-weight:600; }
+    .search-box {
+      padding:10px 16px;
+      background:#333;
+      color:#fff;
+      border:none;
+      border-radius:20px;
+      width:300px;
+      font-size:0.95rem;
+    }
+    .search-box::placeholder { color:#aaa; }
+
+    .controls {
+      padding:12px 20px;
+      background:#121212;
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+      flex-shrink:0;
+      border-bottom:1px solid #333;
+    }
+    .controls button {
+      padding:8px 16px;
+      background:#007bff;
+      color:#fff;
+      border:none;
+      border-radius:6px;
+      cursor:pointer;
+      font-size:0.9rem;
+      transition:0.2s;
+    }
+    .controls button:hover { background:#0056b3; }
+
+    /* 主体 */
     .container { flex:1; display:flex; overflow:hidden; }
-    .sidebar { width:280px; background:#1a1a1a; padding:16px; overflow-y:auto; border-right:1px solid #333; }
+
+    /* 侧边栏 */
+    .sidebar {
+      width:220px; /* 缩窄侧栏宽度 */
+      background:#1a1a1a;
+      padding:16px;
+      overflow-y:auto;
+      border-right:1px solid #333;
+      flex-shrink:0;
+    }
     .sidebar ul { list-style:none; }
     .sidebar li { margin:6px 0; }
-    .sidebar .folder { cursor:pointer; padding:8px; border-radius:6px; display:flex; align-items:center; gap:8px; }
-    .sidebar .folder:hover { background:#333; }
-    .sidebar .folder i { width:16px; }
-    .sidebar .sub { margin-left:20px; border-left:1px dashed #444; padding-left:12px; }
-    .main { flex:1; padding:20px; overflow-y:auto; background:#121212; }
-    .controls { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; padding:0 10px; }
-    .controls button { padding:8px 16px; background:#007bff; color:#fff; border:none; border-radius:4px; cursor:pointer; }
-    .controls select { padding:8px; background:#333; color:#fff; border:none; border-radius:4px; }
-    .grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px,1fr)); gap:16px; }
-    .card { background:#1e1e1e; border-radius:12px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.3); transition:0.2s; }
-    .card:hover { transform:translateY(-4px); box-shadow:0 8px 20px rgba(0,0,0,0.5); }
-    .card img { width:100%; height:140px; object-fit:cover; }
-    .card-body { padding:12px; }
-    .card-title { font-weight:bold; font-size:1.1rem; margin-bottom:4px; cursor:pointer; }
-    .card-subtitle { font-size:0.85rem; color:#aaa; margin-bottom:8px; }
-    .card-actions { display:flex; gap:8px; }
-    .card-actions button { flex:1; padding:8px; font-size:1rem; border:none; border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; }
-    .btn-copy { background:#28a745; color:#fff; }
-    .btn-cart { background:#007bff; color:#fff; }
-    .loading { text-align:center; padding:40px; color:#666; }
-
-    /* 弹窗 */
-    #addModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center; }
-    .modal-content { background:#1e1e1e; padding:24px; border-radius:16px; width:90%; max-width:480px; color:#eee; box-shadow:0 10px 30px rgba(0,0,0,0.5); }
-    .form-group { margin-bottom:16px; }
-    .form-group label { display:block; font-size:0.9rem; color:#ccc; margin-bottom:6px; }
-    .form-group input, .form-group select { width:100%; padding:10px; border-radius:8px; border:none; background:#2a2a2a; color:#fff; font-size:1rem; }
-    .cascade-selects { display:flex; gap:8px; flex-wrap:wrap; }
-    .cascade-selects select { flex:1; min-width:100px; }
-    .img-section { margin:16px 0; }
-    .img-preview { height:140px; background:#2a2a2a; border-radius:8px; overflow:hidden; display:flex; align-items:center; justify-content:center; margin-bottom:8px; }
-    .img-preview img { max-width:100%; max-height:100%; object-fit:contain; }
-    .img-actions { display:flex; gap:8px; }
-    .img-actions button { flex:1; padding:10px; border:none; border-radius:6px; cursor:pointer; font-size:0.9rem; }
-    .btn-select { background:#555; color:#fff; }
-    .btn-upload { background:#007bff; color:#fff; }
-    .btn-upload:disabled { background:#444; cursor:not-allowed; }
-    .modal-footer { display:flex; gap:12px; margin-top:24px; }
-    .modal-footer button { flex:1; padding:12px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; }
-    .btn-cancel { background:#555; color:#fff; }
-    .btn-confirm { background:#007bff; color:#fff; }
-
-    /* WebUI 飘窗提示 */
-    .toast {
-      position: fixed; top: 20px; right: 20px;
-      background: #28a745; color: #fff; padding: 12px 20px;
-      border-radius: 8px; font-size: 0.9rem; z-index: 9999;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      opacity: 0; transform: translateX(100%); transition: all 0.3s ease;
-      pointer-events: none; user-select: none;
+    .sidebar .folder {
+      cursor:pointer;
+      padding:10px;
+      border-radius:8px;
+      display:flex;
+      align-items:center;
+      gap:8px;
+      transition:0.2s;
+      font-weight:500;
     }
-    .toast.error { background: #dc3545; }
-  </style>
+    .sidebar .folder:hover { background:#333; }
+    .sidebar .folder i { width:16px; transition:0.3s; }
+    .sidebar .folder.open i { transform:rotate(90deg); }
+    .sidebar .sub {
+      margin-left:24px;
+      border-left:1px dashed #444;
+      padding-left:14px;
+      display:none;
+    }
+    .sidebar .sub.open { display:block; }
+
+    /* 新增：侧边栏子标签选择样式 */
+    .sub-item {
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 8px;
+      border-radius:6px;
+      cursor:pointer;
+    }
+    .sub-item:hover { background:#2a2a2a; }
+    .sub-item input[type="checkbox"] { accent-color:#58a6ff; }
+
+    /* 主内容区 */
+    .main {
+      flex:1;
+      background:#121212;
+      display:flex;
+    }
+
+    /* 卡片网格 */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr); /* 固定为4列 */
+      gap: 16px;
+      padding: 20px;
+      flex: 1;
+      overflow-y: auto;
+      /* 新增：当卡片数量较少时，靠上对齐，避免行间被拉开 */
+      align-content: start;
+      justify-content: start;
+  }
+
+
+    .card {
+      background: #1e1e1e;
+      border-radius: 12px;
+      padding: 14px;
+      /* 修改：固定卡片高度为 130px */
+      height: 130px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+      transition: all 0.2s ease;
+      font-size: 0.9rem;
+    }
+    .card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+    }
+
+    .card-left {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .word {
+      font-size: 1.2rem; /* 增大主关键词字体 */
+      font-weight: 600;
+      color: #fff; /* 更改为白色，提高对比度 */
+      white-space: normal; /* 允许文字换行 */
+    }
+
+    .meaning {
+      font-size: 0.95rem; /* 增大含义字体 */
+      color: #ccc; /* 调整颜色，提高可见性 */
+      white-space: normal; /* 允许文字换行 */
+    }
+
+    .note {
+      font-size: 0.85rem; /* 增大备注字体 */
+      color: #bbb; /* 调整颜色，提高可见性 */
+      white-space: normal; /* 允许文字换行 */
+    }
+
+    .card-actions {
+      display: flex;
+      gap: 6px;
+      justify-content: flex-end;
+      margin-top: auto; /* 按钮始终在底部 */
+    }
+    
+    /* 重新设计主题风格的幽灵按钮 */
+    .icon-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: 0.2s ease;
+      /* 主题化：半透明深色背景 + 细描边 */
+      background: rgba(255,255,255,0.04);
+      border: 1px solid #2b2b2b;
+      color: #cfd3da; /* 默认图标/文字颜色（中性） */
+    }
+    .icon-btn:hover {
+      transform: translateY(-1px);
+      background: rgba(255,255,255,0.08);
+      border-color: #3a3a3a;
+    }
+    
+    /* 按钮变体：移除实心背景，仅保留轻微的主题色点缀 */
+    .btn-copy,
+    .btn-cart {
+      background: transparent;  /* 不用实心色块 */
+      color: inherit;           /* 继承中性颜色 */
+    }
+    
+    /* 用主题色点缀图标颜色（更克制） */
+    .btn-copy i { color: #79d28f; }   /* 绿色点缀 */
+    .btn-cart i { color: #58a6ff; }   /* 蓝色点缀 */
+    
+    /* 悬停时添加柔和的发光，不突兀 */
+    .btn-copy:hover {
+      box-shadow: 0 0 0 2px rgba(121,210,143,0.18), 0 2px 10px rgba(121,210,143,0.12);
+    }
+    .btn-cart:hover {
+      box-shadow: 0 0 0 2px rgba(88,166,255,0.18), 0 2px 10px rgba(88,166,255,0.12);
+    }
+
+    .icon-btn:hover { transform: scale(1.1); }
+
+    /* 新增：统一滚动条深色主题（Card Grid、Cart List、Sidebar） */
+    :root {
+      /* Firefox 全局滚动条主题 */
+      scrollbar-color: #4b4b4b #151515;  /* thumb, track */
+      scrollbar-width: thin;
+    }
+    .card-grid, .cart-list, .sidebar {
+      /* Firefox 针对容器的滚动条主题 */
+      scrollbar-color: #4b4b4b #151515;
+      scrollbar-width: thin;
+    }
+    /* Chrome/Edge（Blink）滚动条主题 */
+    .card-grid::-webkit-scrollbar,
+    .cart-list::-webkit-scrollbar,
+    .sidebar::-webkit-scrollbar {
+      width: 10px;
+    }
+    .card-grid::-webkit-scrollbar-track,
+    .cart-list::-webkit-scrollbar-track,
+    .sidebar::-webkit-scrollbar-track {
+      background: #151515;
+      border-radius: 8px;
+    }
+    .card-grid::-webkit-scrollbar-thumb,
+    .cart-list::-webkit-scrollbar-thumb,
+    .sidebar::-webkit-scrollbar-thumb {
+      background: #2b2b2b;
+      border: 1px solid #3a3a3a;
+      border-radius: 8px;
+    }
+    .card-grid::-webkit-scrollbar-thumb:hover,
+    .cart-list::-webkit-scrollbar-thumb:hover,
+    .sidebar::-webkit-scrollbar-thumb:hover {
+      background: #3a3a3a;
+    }
+
+    /* 购物车右侧栏 */
+    .cart-sidebar {
+      width:300px;
+      background:#1a1a1a;
+      border-left:1px solid #333;
+      display:flex;
+      flex-direction:column;
+      flex-shrink:0;
+    }
+    .cart-header {
+      padding:16px 18px;
+      border-bottom:1px solid #333;
+      font-weight:600;
+      font-size:1.1rem;
+      color:#eee;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+    }
+    #cartCount { color:#4da6ff; font-weight:bold; }
+
+    /* 新增：右侧操作区，让抽词按钮不贴边 */
+    .cart-actions-right {
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+
+    /* 抽词按钮往左挪一点（与右侧设置按钮留出间距） */
+    .btn-draw {
+      padding:6px 12px;
+      border-radius:6px;
+      background:rgba(88,166,255,0.12);
+      border:1px solid #2b2b2b;
+      color:#58a6ff;
+      cursor:pointer;
+      transition:0.2s ease;
+      font-size:0.9rem;
+      margin-right:4px; /* 新增：向左偏移感受 */
+    }
+    .btn-draw:hover {
+      background:rgba(88,166,255,0.2);
+      box-shadow:0 0 0 2px rgba(88,166,255,0.18), 0 2px 10px rgba(88,166,255,0.12);
+    }
+
+    /* 新增：设置按钮样式 */
+    .btn-settings {
+      width:32px;
+      height:32px;
+      border-radius:8px;
+      background:rgba(255,255,255,0.04);
+      border:1px solid #2b2b2b;
+      color:#cfd3da;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
+      transition:0.2s ease;
+    }
+    .btn-settings:hover {
+      background:rgba(255,255,255,0.08);
+      border-color:#3a3a3a;
+      transform:translateY(-1px);
+    }
+
+    /* 新增：设置弹窗样式 */
+    .modal {
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,0.55);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:10000;
+    }
+    .modal.show { display:flex; }
+    .modal-content {
+      width:min(840px, 92vw);
+      max-height:80vh; /* 保持弹窗最大高度，防止撑满屏幕 */
+      background:#1a1a1a;
+      border:1px solid #333;
+      border-radius:12px;
+      box-shadow:0 10px 30px rgba(0,0,0,0.45);
+      display:flex;
+      flex-direction:column;
+      overflow:hidden;
+    }
+    .modal-header {
+      padding:14px 16px;
+      border-bottom:1px solid #333;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+    }
+    .modal-header h3 { font-size:1.05rem; }
+    .modal-close {
+      width:30px; height:30px; border-radius:8px;
+      background:rgba(255,255,255,0.04); border:1px solid #2b2b2b;
+      color:#cfd3da; cursor:pointer;
+      display:flex; align-items:center; justify-content:center;
+    }
+    /* 修改：弹窗主体超出时可垂直滚动 */
+    .modal-body {
+      padding:12px 16px;
+      overflow-y:auto;                 /* 仅垂直滚动 */
+      max-height:calc(80vh - 140px);   /* 根据头/脚高度预留，保证可滚动 */
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      overscroll-behavior:contain;     /* 防止滚动穿透到页面 */
+    }
+    .category-block { border:1px dashed #333; border-radius:8px; padding:10px; }
+    .category-name { font-weight:600; margin-bottom:8px; color:#ddd; }
+    .sub-list { display:flex; flex-wrap:wrap; gap:8px; }
+    .tag-option {
+      display:flex; align-items:center; gap:6px;
+      padding:6px 8px; border-radius:8px;
+      background:rgba(255,255,255,0.04);
+      border:1px solid #2b2b2b; color:#eee;
+    }
+    .tag-option input[type="checkbox"] { accent-color:#58a6ff; }
+    .modal-footer {
+      padding:12px 16px; border-top:1px solid #333; display:flex; justify-content:flex-end;
+    }
+    .btn-save {
+      padding:8px 16px; border:none; border-radius:8px;
+      background:#28a745; color:#fff; font-weight:600; cursor:pointer;
+    }
+
+    .cart-list {
+      flex:1;
+      overflow-y:auto;
+      padding:0 18px;
+    }
+    .cart-item {
+      padding:10px 0;
+      border-bottom:1px dashed #333;
+      font-size:0.9rem;
+      color:#ddd;
+      display:flex;              /* 购物车项左右分布 */
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .cart-item:last-child { border-bottom:none; }
+
+    /* 单个删除按钮样式 */
+    .btn-remove {
+      width:28px;
+      height:28px;
+      border-radius:6px;
+      background:rgba(255,255,255,0.04);
+      border:1px solid #2b2b2b;
+      color:#dc3545;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
+      transition:0.2s ease;
+    }
+    .btn-remove:hover {
+      background:rgba(220,53,69,0.12);
+      box-shadow:0 0 0 2px rgba(220,53,69,0.18), 0 2px 10px rgba(220,53,69,0.12);
+    }
+
+    .cart-footer {
+      padding:16px 18px;
+      border-top:1px solid #333;
+      display:flex;
+      gap:10px;
+    }
+    .cart-footer button {
+      flex:1;
+      padding:10px;
+      border:none;
+      border-radius:8px;
+      cursor:pointer;
+      font-size:0.9rem;
+      font-weight:500;
+    }
+    .btn-copy-all { background:#28a745; color:#fff; }
+    .btn-clear { background:#dc3545; color:#fff; }
+
+    /* Toast */
+    .toast {
+      position:fixed; top:20px; right:20px;
+      background:#28a745; color:#fff; padding:12px 20px;
+      border-radius:8px; font-size:0.9rem; z-index:9999;
+      box-shadow:0 4px 12px rgba(0,0,0,0.3);
+      opacity:0; transform:translateX(100%); transition:all 0.3s ease;
+    }
+    .toast.show { opacity:1; transform:translateX(0); }
+    .toast.error { background:#dc3545; }
+
+    /* 响应式 */
+    @media (max-width: 1100px) {
+      .cart-sidebar { display:none; }
+      .card-grid { grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); }
+    }
+</style>
 </head>
 <body>
-  <div class="header">NSFW 关键词超市</div>
-
-  <div class="controls">
-    <button onclick="addNewWord()">新增关键词</button>
-    <button onclick="exportJSON()">导出 JSON</button>
-    <input type="file" id="importFile" onchange="importJSON(event)" style="display:none;">
-    <button onclick="document.getElementById('importFile').click()">导入 JSON</button>
+  <!-- 顶部 -->
+  <div class="header">
+    <h1>NSFW 关键词超市</h1>
+    <input type="text" class="search-box" placeholder="搜索关键词..." oninput="filterCards()">
   </div>
 
-  <!-- 新增关键词弹窗 -->
-  <div id="addModal">
-    <div class="modal-content">
-      <h3 style="margin-bottom:20px; text-align:center;">新增 NSFW 关键词</h3>
+  <!-- 控制栏 -->
+  <div class="controls">
+    <!-- 新增、导入、导出按钮已移除 -->
+  </div>
 
-      <div class="form-group">
-        <label>目标标签路径</label>
-        <div class="cascade-selects">
-          <select id="level1"><option value="">一级标签</option></select>
-          <select id="level2"><option value="">二级标签</option></select>
-          <select id="level3"><option value="">三级标签</option></select>
-        </div>
-      </div>
+  <!-- 主体 -->
+  <div class="container">
+    <!-- 侧边栏 -->
+    <div class="sidebar">
+      <ul id="categoryTree"></ul>
+    </div>
 
-      <div class="form-group">
-        <label>英文关键词</label>
-        <input type="text" id="newWord" placeholder="e.g., large breasts">
-      </div>
+    <!-- 主内容区 -->
+    <div class="main">
+      <!-- 卡片网格 -->
+      <div class="card-grid" id="cardGrid"></div>
 
-      <div class="form-group">
-        <label>中文翻译</label>
-        <input type="text" id="newZh" placeholder="e.g., 巨乳">
-      </div>
-
-      <div class="form-group">
-        <label>强度 (0.1 - 1.0)</label>
-        <input type="number" id="newStrength" step="0.1" min="0.1" max="1.0" value="0.8">
-      </div>
-
-      <div class="form-group">
-        <label>图片</label>
-        <div class="img-section">
-          <div class="img-preview" id="imgPreview">
-            <small style="color:#666;">上传后显示图床图片</small>
-          </div>
-          <div class="img-actions">
-            <input type="file" id="imgUpload" accept="image/*" style="display:none;">
-            <button class="btn-select" id="btnSelectImg">选择图片</button>
-            <button class="btn-upload" id="btnUploadImg" disabled>获取 URL</button>
+      <!-- 右侧购物车 -->
+      <div class="cart-sidebar">
+        <div class="cart-header">
+          <div>购物车 (<span id="cartCount">0</span>)</div>
+          <!-- 修改：右侧放置抽词 + 设置 -->
+          <div class="cart-actions-right">
+            <button class="btn-draw" onclick="drawWords()" title="从选中的标签列表抽词">抽词</button>
+            <button class="btn-settings" onclick="openSettingsModal()" title="选择抽词的二级标签">
+              <i class="fas fa-cog"></i>
+            </button>
           </div>
         </div>
-        <small style="color:#aaa;">上传到 Catbox (免费、永久、支持 NSFW)</small>
-      </div>
-
-      <div class="modal-footer">
-        <button class="btn-cancel" onclick="closeModal()">取消</button>
-        <button class="btn-confirm" onclick="confirmAdd()">确认添加</button>
+        <div class="cart-list" id="cartList"></div>
+        <div class="cart-footer">
+          <button class="btn-copy-all" onclick="copyAll()">复制全部</button>
+          <button class="btn-clear" onclick="clearCart()">清空</button>
+        </div>
       </div>
     </div>
   </div>
 
-  <div class="container">
-    <nav class="sidebar">
-      <div class="loading">云端加载中...</div>
-      <ul id="navTree" style="display:none;"></ul>
-    </nav>
-    <section class="main">
-      <div class="controls">
-        <select id="sortOrder" onchange="renderCards()">
-          <option value="desc">复制次数降序</option>
-          <option value="asc">复制次数升序</option>
-        </select>
-        <button onclick="clearCart()">清空购物车</button>
-      </div>
-      <div id="cardGrid" class="grid">
-        <div class="loading">请先选择左侧分类</div>
-      </div>
-    </section>
-  </div>
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
 
   <script>
-    const BIN_ID = '690f2ed2d0ea881f40db9bc3';
-    const MASTER_KEY = '$2a$10$xnT36sEdgvmYUqMghhjHuuDn.ErHF2gpSRxGohHLUJ5HUg8/Z3XEq';
+     let keywords = [];
+     let cart = [];
+     let rawData = {}; // 保存原始json数据
+     // 新增：记录选中的“标签列表”（category|sub 的键）
+     const selectedTags = new Set();
 
-    let treeData = null;
-    let currentPath = [];
-    let currentItems = [];
-    let cart = JSON.parse(localStorage.getItem('nsfw-cart') || '[]');
-    let copyCounts = JSON.parse(localStorage.getItem('nsfw-copies') || '{}');
-    let selectedFile = null;
-    let uploadedUrl = '';
-    let hasAutoOpened = false;
-
-    // === WebUI 飘窗提示 ===
-    function showToast(msg, type = 'success') {
-      const toast = document.createElement('div');
-      toast.className = `toast ${type === 'error' ? 'error' : ''}`;
-      toast.textContent = msg;
-      document.body.appendChild(toast);
-      
-      setTimeout(() => {
-        toast.style.opacity = 1;
-        toast.style.transform = 'translateX(0)';
-      }, 10);
-      
-      setTimeout(() => {
-        toast.style.opacity = 0;
-        toast.style.transform = 'translateX(100%)';
-        toast.addEventListener('transitionend', () => toast.remove());
-      }, 3000);
-    }
-
-    // === 修改 1：全局变量初始化时读取 record ===
-async function loadData() {
-  try {
-    const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, { headers: { 'X-Master-Key': MASTER_KEY } });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    treeData = data.record;  // <--- 关键修改
-    document.querySelector('.sidebar .loading').style.display = 'none';
-    document.getElementById('navTree').style.display = 'block';
-    buildNav(treeData, document.getElementById('navTree'));
-    initCascadeSelects();
-    goTo([]);
-    renderCart();
-    showToast('云端数据加载成功！');
-    if (!hasAutoOpened) {
-      hasAutoOpened = true;
-      addNewWord();
-    }
-  } catch (e) {
-    showToast('加载失败: ' + e.message, 'error');
-  }
-  // 自动展开第一个一级标签
-setTimeout(() => {
-  const firstToggle = document.querySelector('.sidebar .folder > i.fa-chevron-right');
-  if (firstToggle) firstToggle.parentElement.click();
-}, 100)
-}
-
-  // === 修改 2：保存时写回 record 结构 ===
-async function saveData() {
-  try {
-    const res = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'X-Master-Key': MASTER_KEY },
-      body: JSON.stringify({ record: treeData })  // <--- 关键修改
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    showToast('已保存到云端！');
-  } catch (e) {
-    showToast('保存失败: ' + e.message, 'error');
-  }
-}
-
-    // === 稳定上传 ===
-    async function uploadToLitterbox(file) {
-      const form = new FormData();
-      form.append('reqtype', 'fileupload');
-      form.append('fileToUpload', file);
-      const res = await fetch('https://catbox.moe/user/api.php', {
-        method: 'POST',
-        body: form,
-        headers: { 'User-Agent': 'Mozilla/5.0' }
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const url = await res.text();
-      if (url.startsWith('https://files.catbox.moe/')) return url;
-      throw new Error(url || '上传失败');
-    }
-
-    // === 级联标签 ===
-    function initCascadeSelects() {
-      const l1 = document.getElementById('level1');
-      const l2 = document.getElementById('level2');
-      const l3 = document.getElementById('level3');
-
-      l1.innerHTML = '<option value="">一级标签</option>';
-      l2.innerHTML = '<option value="">二级标签</option>';
-      l3.innerHTML = '<option value="">三级标签</option>';
-
-      const leafPaths = [];
-      function collect(node, path = []) {
-        if (Array.isArray(node)) leafPaths.push([...path]);
-        else if (typeof node === 'object') for (const k in node) collect(node[k], [...path, k]);
-      }
-      collect(treeData);
-
-      const level1Set = new Set(), level2Map = {}, level3Map = {};
-      leafPaths.forEach(p => {
-        if (p[0]) level1Set.add(p[0]);
-        if (p[0] && p[1]) { if (!level2Map[p[0]]) level2Map[p[0]] = new Set(); level2Map[p[0]].add(p[1]); }
-        if (p[0] && p[1] && p[2]) { const k = `${p[0]}|${p[1]}`; if (!level3Map[k]) level3Map[k] = new Set(); level3Map[k].add(p[2]); }
-      });
-
-      [...level1Set].sort().forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = k; l1.appendChild(o); });
-
-      function updateL2() {
-        const v1 = l1.value;
-        l2.innerHTML = '<option value="">二级标签</option>';
-        if (v1 && level2Map[v1]) [...level2Map[v1]].sort().forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = k; l2.appendChild(o); });
-      }
-
-      function updateL3() {
-        const v1 = l1.value, v2 = l2.value;
-        l3.innerHTML = '<option value="">三级标签</option>';
-        if (v1 && v2 && level3Map[`${v1}|${v2}`]) [...level3Map[`${v1}|${v2}`]].sort().forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = k; l3.appendChild(o); });
-      }
-
-      l1.onchange = () => { updateL2(); updateL3(); };
-      l2.onchange = () => updateL3();
-
-      l3.onchange = () => {
-        const v3 = l3.value;
-        if (!v3) return;
-        for (const path of leafPaths) {
-          if (path[2] === v3) {
-            l1.value = path[0];
-            updateL2();
-            l2.value = path[1];
-            updateL3();
-            for (const opt of l3.options) if (opt.value === v3) { opt.selected = true; break; }
-            break;
-          }
+    // 递归遍历 test-data.json，提取所有关键词为统一格式
+    function flattenKeywords(json) {
+      const result = [];
+      for (const category in json) {
+        for (const sub in json[category]) {
+          json[category][sub].forEach(item => {
+            result.push({
+              word: item["词"],
+              meaning: item["词2"],
+              note: item["说明"],
+              category: category + " / " + sub,
+              strength: item["强度"]
+            });
+          });
         }
-      };
-
-      updateL2(); updateL3();
-    }
-
-    // === 弹窗控制 ===
-    function addNewWord() {
-      document.getElementById('addModal').style.display = 'flex';
-      document.getElementById('newWord').value = '';
-      document.getElementById('newZh').value = '';
-      document.getElementById('newStrength').value = '0.8';
-      document.getElementById('imgPreview').innerHTML = '<small style="color:#666;">上传后显示图床图片</small>';
-      document.getElementById('btnUploadImg').disabled = true;
-      document.getElementById('btnUploadImg').textContent = '获取 URL';
-      selectedFile = null;
-      uploadedUrl = '';
-      if (treeData) initCascadeSelects();
-    }
-
-    function closeModal() {
-      document.getElementById('addModal').style.display = 'none';
-    }
-
-    document.getElementById('btnSelectImg').onclick = () => document.getElementById('imgUpload').click();
-    document.getElementById('imgUpload').onchange = e => { selectedFile = e.target.files[0]; if (selectedFile) document.getElementById('btnUploadImg').disabled = false; };
-
-    document.getElementById('btnUploadImg').onclick = async () => {
-      if (!selectedFile) return;
-      const btn = document.getElementById('btnUploadImg');
-      btn.disabled = true; btn.textContent = '上传中...';
-      try {
-        uploadedUrl = await uploadToLitterbox(selectedFile);
-        document.getElementById('imgPreview').innerHTML = `<img src="${uploadedUrl}">`;
-        showToast('上传成功！');
-        btn.textContent = '已获取';
-      } catch (e) {
-        showToast(e.message, 'error');
-        btn.textContent = '获取 URL'; btn.disabled = false;
       }
-    };
-
-    // === 正确添加逻辑：最后一级就是数组！===
-    function confirmAdd() {
-      const word = document.getElementById('newWord').value.trim();
-      const zh = document.getElementById('newZh').value.trim();
-      const strength = parseFloat(document.getElementById('newStrength').value) || 0.8;
-      const l1 = document.getElementById('level1').value;
-      const l2 = document.getElementById('level2').value;
-      const l3 = document.getElementById('level3').value;
-
-      if (!word) return showToast('英文关键词不能为空！', 'error');
-      if (!l1)   return showToast('请至少选择一级标签！', 'error');
-
-      const path = [l1];
-      if (l2) path.push(l2);
-      if (l3) path.push(l3);
-
-      // 遍历到倒数第二级
-      let node = treeData;
-      for (let i = 0; i < path.length - 1; i++) {
-        const key = path[i];
-        if (!node[key] || typeof node[key] !== 'object' || Array.isArray(node[key])) {
-          return showToast(`路径错误：${path.slice(0, i + 1).join(' → ')} 不是文件夹`, 'error');
-        }
-        node = node[key];
-      }
-
-      const targetKey = path[path.length - 1];
-      if (!node[targetKey]) return showToast(`标签 "${targetKey}" 不存在！`, 'error');
-      if (!Array.isArray(node[targetKey])) return showToast(`"${targetKey}" 不是关键词列表！`, 'error');
-
-      node[targetKey].push({
-        "词": word,
-        "强度": strength,
-        "图": uploadedUrl,
-        "复制": 0,
-        "词2": zh
-      });
-
-      renderCards();
-      saveData();
-      closeModal();
-      showToast('关键词添加成功！');
+      return result;
     }
 
-// === 修改 3：buildNav 支持折叠（仅一级）===
-function buildNav(node, parent, path = []) {
-  Object.keys(node).forEach((key, idx) => {
-    const li = document.createElement('li');
-    const isTopLevel = path.length === 0;
-
-    if (isTopLevel) {
-      // 一级标签：可折叠
-      const toggle = document.createElement('i');
-      toggle.className = 'fas fa-chevron-right';
-      toggle.style.transition = 'transform 0.2s';
-      toggle.style.marginRight = '6px';
-      toggle.style.fontSize = '0.8rem';
-
-      const span = document.createElement('span');
-      span.className = 'folder';
-      span.style.alignItems = 'center';
-      span.innerHTML = `${key}`;
-      span.onclick = (e) => {
-        e.stopPropagation();
-        const ul = li.querySelector('ul');
-        const isOpen = ul.style.display === 'block';
-        ul.style.display = isOpen ? 'none' : 'block';
-        toggle.className = isOpen ? 'fas fa-chevron-right' : 'fas fa-chevron-down';
-      };
-      span.insertBefore(toggle, span.firstChild);
-
-      li.appendChild(span);
-
-      const ul = document.createElement('ul');
-      ul.className = 'sub';
-      ul.style.display = 'none';  // 默认收起
-      ul.style.marginLeft = '20px';
-      ul.style.borderLeft = '1px dashed #444';
-      ul.style.paddingLeft = '12px';
-      li.appendChild(ul);
-      buildNav(node[key], ul, [...path, key]);
-    } else {
-      // 二级及以下：原逻辑（不可折叠）
-      const span = document.createElement('span');
-      span.className = 'folder';
-      span.innerHTML = `<i class="fas fa-folder"></i> ${key}`;
-      span.onclick = () => goTo([...path, key]);
-      li.appendChild(span);
-
-      if (typeof node[key] === 'object' && !Array.isArray(node[key])) {
-        const ul = document.createElement('ul');
-        ul.className = 'sub';
-        li.appendChild(ul);
-        buildNav(node[key], ul, [...path, key]);
-      }
-    }
-
-    parent.appendChild(li);
-  });
+   // 渲染侧边栏分类树（去掉 input 勾选框，仅保留点击容器筛选）
+function renderCategoryTree(json) {
+  const tree = document.getElementById('categoryTree');
+  tree.innerHTML = Object.keys(json).map(category => {
+    const subList = Object.keys(json[category])
+      .map(sub => {
+        return `
+          <li>
+            <div class="sub-item" onclick="onSubItemClick(event, '${category}', '${sub}')">
+              <span class="sub-name">${sub}</span>
+            </div>
+          </li>
+        `;
+      }).join('');
+    return `
+      <li>
+        <div class="folder" onclick="toggleSub(this)"><i class="fas fa-chevron-right"></i> ${category}</div>
+        <ul class="sub">${subList}</ul>
+      </li>
+    `;
+  }).join('');
 }
 
-    function goTo(path) {
-      currentPath = path;
-      let node = treeData;
-      path.forEach(p => node = node[p]);
-      currentItems = Array.isArray(node) ? node.map(w => typeof w === 'string' ? {词:w} : w) : [];
-      renderCards();
-    }
+   // 分类筛选
+   function filterByCategory(category, sub) {
+     const filtered = keywords.filter(k => k.category === category + " / " + sub);
+     renderCards(filtered);
+   }
 
-    function renderCards() {
-      if (!treeData) return;
-      const order = document.getElementById('sortOrder').value;
-      const sorted = [...currentItems].sort((a,b) => {
-        const ca = copyCounts[a.词] || a.复制 || 0;
-        const cb = copyCounts[b.词] || b.复制 || 0;
-        return order === 'desc' ? cb - ca : ca - cb;
-      });
-
+    // 渲染卡片
+    function renderCards(data) {
       const grid = document.getElementById('cardGrid');
-      if (currentItems.length === 0) {
-        grid.innerHTML = '<div class="loading">请选择左侧分类</div>';
+      grid.innerHTML = data.map(item => `
+        <div class="card">
+          <div class="card-left">
+            <div class="word">${item.word}</div>
+            <div class="meaning">${item.meaning}<span class="note">（${item.note}）</span></div>
+      
+          </div>
+          <div class="card-actions">
+            <button class="icon-btn btn-copy" onclick="copyText('${item.word}')">
+              <i class="fas fa-copy"></i>
+            </button>
+            <button class="icon-btn btn-cart" onclick="addToCart(${JSON.stringify(item).replace(/"/g, '&quot;')})">
+              <i class="fas fa-cart-plus"></i>
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // 搜索过滤
+    function filterCards() {
+      const query = document.querySelector('.search-box').value.toLowerCase();
+      const filtered = keywords.filter(k =>
+        k.word.toLowerCase().includes(query) ||
+        k.meaning.toLowerCase().includes(query) ||
+        k.note.toLowerCase().includes(query)
+      );
+      renderCards(filtered);
+    }
+
+    // 复制文本
+    function copyText(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('已复制：' + text);
+      });
+    }
+
+    // 加入购物车
+    function addToCart(item) {
+      if (!cart.find(i => i.word === item.word)) {
+        // 修改：标记手动添加的来源
+        cart.push({ ...item, source: 'manual' });
+        updateCart();
+        showToast('已加入：' + item.word);
+      }
+    }
+
+    // 更新购物车
+    function updateCart() {
+      const count = cart.length;
+      document.getElementById('cartCount').textContent = count;
+
+      const list = document.getElementById('cartList');
+      if (count === 0) {
+        list.innerHTML = '<div style="text-align:center; color:#666; padding:20px;">空</div>';
         return;
       }
 
-      grid.innerHTML = sorted.map(item => {
-        const word = item.词 || item;
-        const count = copyCounts[word] || item.复制 || 0;
-        const countStr = count > 0 ? `<${count >= 1000 ? Math.floor(count/1000)+'k' : count}>` : '';
-        const title = `${word} ${countStr}`;
-        const subtitle = item.词2 || '暂无翻译';
-
-        return `
-          <div class="card">
-            ${item.图 ? `<img src="${item.图}" loading="lazy" onerror="this.src='https://via.placeholder.com/220x140?text=无图'">` : ''}
-            <div class="card-body">
-              <div class="card-title">${title}</div>
-              <div class="card-subtitle">${subtitle} · 强度: ${item.强度 || '-'}</div>
-              <div class="card-actions">
-                <button class="btn-copy" onclick="copyWord('${word}')">Copy</button>
-                <button class="btn-cart" onclick="addToCart('${word}')">Add</button>
-              </div>
-            </div>
+      // 渲染购物车项（含删除按钮）
+      list.innerHTML = cart.map(item => `
+        <div class="cart-item">
+          <div>
+            <strong>${item.word}</strong><br>
+            <small style="color:#aaa;">${item.meaning}</small>
           </div>
-        `;
-      }).join('');
+          <button class="btn-remove" onclick="removeFromCart(${JSON.stringify(item.word).replace(/"/g, '&#39;')})" title="移除">
+            <i class="fas fa-trash-alt"></i>
+          </button>
+        </div>
+      `).join('');
     }
 
-    function copyWord(word) {
-      navigator.clipboard.writeText(word);
-      copyCounts[word] = (copyCounts[word] || 0) + 1;
-      localStorage.setItem('nsfw-copies', JSON.stringify(copyCounts));
-      renderCards();
+    // 单个移除购物车项（去掉所有 '+' 前缀）
+    function removeFromCart(word) {
+      const idx = cart.findIndex(i => i.word === word);
+      if (idx !== -1) {
+        const removed = cart.splice(idx, 1)[0];
+        updateCart();
+        showToast('已移除：' + removed.word);
+      }
     }
 
-    function addToCart(word) {
-      if (!cart.includes(word)) { cart.push(word); localStorage.setItem('nsfw-cart', JSON.stringify(cart)); renderCart(); }
+    // 复制全部
+    function copyAll() {
+      if (cart.length === 0) return;
+      const text = cart.map(i => i.word).join(', ');
+      navigator.clipboard.writeText(text);
+      showToast('已复制全部关键词');
     }
 
-    function renderCart() { /* 保持原逻辑 */ }
-    function exportJSON() { /* 保持原逻辑 */ }
-    function importJSON(e) { /* 保持原逻辑 */ }
+    // 清空
+    function clearCart() {
+      cart = [];
+      updateCart();
+      showToast('购物车已清空');
+    }
 
-    window.onload = () => loadData();
+    // Toast
+    function showToast(msg, isError = false) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.className = 'toast' + (isError ? ' error' : '') + ' show';
+      setTimeout(() => toast.className = 'toast', 3000);
+    }
+
+    // 折叠侧边栏
+    function toggleSub(el) {
+      el.classList.toggle('open');
+      el.nextElementSibling.classList.toggle('open');
+    }
+
+    // 初始化：异步加载 JSON 并渲染
+    fetch('test-data.json')
+      .then(res => res.json())
+      .then(data => {
+       rawData = data;
+        keywords = flattenKeywords(data);
+        renderCards(keywords);
+        updateCart();
+       renderCategoryTree(data);
+      })
+      .catch(() => {
+        showToast('关键词数据加载失败', true);
+      });
   </script>
 </body>
 </html>
+
+<script>
+    // 勾选/取消子标签后刷新主列表（并集；若无选择则显示全部）
+    function toggleTagSelection(el) {
+      const key = el.dataset.tag;
+      if (el.checked) selectedTags.add(key);
+      else selectedTags.delete(key);
+      updateMainBySelected();
+    }
+
+    function updateMainBySelected() {
+      if (selectedTags.size === 0) {
+        renderCards(keywords);
+        return;
+      }
+      const selectedCats = Array.from(selectedTags).map(k => {
+        const [c, s] = k.split('|');
+        return `${c} / ${s}`;
+      });
+      const filtered = keywords.filter(k => selectedCats.includes(k.category));
+      renderCards(filtered);
+    }
+
+    // 将点击事件绑定在 sub-item 容器，点击复选框不触发筛选
+    function onSubItemClick(evt, category, sub) {
+      if (evt.target && evt.target.tagName.toLowerCase() === 'input') return;
+      filterByCategory(category, sub);
+    }
+
+    // 抽词：清空购物车并用抽到的词替换（不调用 addToCart，避免追加）
+    // 抽词：只替换来源为抽词的项；新增的抽词结果追加到购物车末尾；手动项不变
+    function drawWords() {
+      if (selectedTags.size === 0) {
+        showToast('请先在设置中勾选需要的二级标签', true);
+        return;
+      }
+    
+      // 为每个勾选的二级标签各抽 1 个
+      const picks = [];
+      Array.from(selectedTags).forEach(key => {
+        const [category, sub] = key.split('|');
+        const arr = (rawData[category] && rawData[category][sub]) ? rawData[category][sub] : [];
+        if (arr.length > 0) {
+          const item = arr[Math.floor(Math.random() * arr.length)];
+          picks.push({
+            word: item["词"],
+            meaning: item["词2"],
+            note: item["说明"],
+            category: `${category} / ${sub}`,
+            strength: item["强度"],
+            source: 'draw' // 标记抽词来源
+          });
+        }
+      });
+    
+      if (picks.length === 0) {
+        showToast('已选标签中没有可抽取的关键词', true);
+        return;
+      }
+    
+      // 找出现有的抽词卡槽位置（手动项保持不动）
+      const drawIndices = [];
+      for (let i = 0; i < cart.length; i++) {
+        if (cart[i].source === 'draw') drawIndices.push(i);
+      }
+    
+      // 1) 替换已有抽词卡槽（按出现顺序）
+      const replaceCount = Math.min(drawIndices.length, picks.length);
+      for (let i = 0; i < replaceCount; i++) {
+        cart[drawIndices[i]] = picks[i];
+      }
+    
+      // 2) 勾选数增加：把新增的抽词结果追加到购物车末尾（不挤占手动项）
+      for (let i = replaceCount; i < picks.length; i++) {
+        cart.push(picks[i]);
+      }
+    
+      // 3) 勾选数减少：移除多余的抽词卡槽（从后往前删，避免索引错位）
+      for (let i = drawIndices.length - 1; i >= picks.length; i--) {
+        cart.splice(drawIndices[i], 1);
+      }
+    
+      updateCart();
+      showToast(`已抽取 ${picks.length} 个关键词`);
+    }
+
+    // ... existing code (updateCart, removeFromCart, copyAll, clearCart, showToast, toggleSub, fetch...)
+  </script>
+  </body>
+  </html>
+
+<!-- 新增：设置弹窗 -->
+<div id="settingsModal" class="modal" aria-hidden="true">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>选择二级标签</h3>
+      <button class="modal-close" onclick="closeSettingsModal()" aria-label="关闭"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="settingsBody" class="modal-body">
+      <!-- 运行时渲染所有二级标签 -->
+    </div>
+    <div class="modal-footer">
+      <button class="btn-save" onclick="saveSettings()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // 打开设置弹窗并渲染二级标签
+  function openSettingsModal() {
+    renderSettingsModalBody();
+    document.getElementById('settingsModal').classList.add('show');
+  }
+
+  function closeSettingsModal() {
+    document.getElementById('settingsModal').classList.remove('show');
+  }
+
+  // 渲染弹窗中的所有二级标签（按一级分类分组）
+  function renderSettingsModalBody() {
+    const body = document.getElementById('settingsBody');
+    if (!rawData || Object.keys(rawData).length === 0) {
+      body.innerHTML = '<div style="color:#ccc">数据尚未加载</div>';
+      return;
+    }
+    const html = Object.keys(rawData).map(category => {
+      const subs = Object.keys(rawData[category]).map(sub => {
+        const key = `${category}|${sub}`;
+        const checked = selectedTags.has(key) ? 'checked' : '';
+        return `<label class="tag-option"><input type="checkbox" data-tag="${key}" ${checked}> <span>${sub}</span></label>`;
+      }).join('');
+      return `<div class="category-block">
+                <div class="category-name">${category}</div>
+                <div class="sub-list">${subs}</div>
+              </div>`;
+    }).join('');
+    body.innerHTML = html;
+  }
+
+  // 保存选择到 selectedTags，并刷新展示
+  function saveSettings() {
+    const inputs = Array.from(document.querySelectorAll('#settingsBody input[type="checkbox"]'));
+    selectedTags.clear();
+    inputs.forEach(i => { if (i.checked) selectedTags.add(i.dataset.tag); });
+    closeSettingsModal();
+    updateMainBySelected();   // 已选标签联动主列表
+    showToast('标签选择已保存');
+  }
+</script>
