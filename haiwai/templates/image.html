@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Image Gallery</title>
+</head>
+<body>
+<h1>Image Gallery</h1>
+<table>
+    <tr>
+        <th>Image ID</th>
+        <th>Username</th>
+        <th>Image URL</th>
+        <th>Remark</th>
+    </tr>
+    {{range .Images}}
+    <tr>
+        <td>{{.Id}}</td>
+        <td>{{.UserName}}</td>
+        <td>{{.Url}}</td>
+        <td>{{.ReMark}}</td>
+    </tr>
+    {{end}}
+</table>
+</body>
+</html>

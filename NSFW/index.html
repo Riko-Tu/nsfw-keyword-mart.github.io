@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NSFW 关键词超市</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <!-- 外部样式：原内联 <style> 已拆分到 styles.css -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- 顶部 -->
+  <div class="header">
+    <h1>NSFW 关键词超市</h1>
+    <input type="text" class="search-box" placeholder="搜索关键词..." oninput="filterCards()">
+  </div>
+
+  <!-- 新增：页面级 Tab 菜单（位于标题下方、卡片区上方） -->
+  <div class="tabbar">
+    <button class="tab-btn active" data-tab="prompts" onclick="switchTab('prompts')">提示词页</button>
+    <button class="tab-btn" data-tab="groups" onclick="switchTab('groups')">词组页</button>
+  </div>
+
+  <!-- 控制栏（预留） -->
+  <div class="controls">
+    <!-- 可在此扩展其它操作按钮 -->
+  </div>
+
+  <!-- 主体 -->
+  <div class="container">
+    <!-- 侧边栏 -->
+    <div class="sidebar">
+      <ul id="categoryTree"></ul>
+    </div>
+
+    <!-- 主内容区 -->
+    <div class="main">
+      <!-- 提示词卡片网格（原有） -->
+      <div class="card-grid" id="cardGrid"></div>
+
+      <!-- 新增：词组页网格（默认隐藏，切换到“词组页”激活） -->
+      <div class="card-grid" id="groupGrid" style="display:none"></div>
+
+      <!-- 右侧购物车 -->
+      <div class="cart-sidebar">
+        <div class="cart-header">
+          <div>购物车 (<span id="cartCount">0</span>)</div>
+          <div class="cart-actions-right">
+            <button class="btn-draw" onclick="drawWords()" title="从选中的标签列表抽词">抽词</button>
+            <button class="btn-settings" onclick="openSettingsModal()" title="选择抽词的二级标签">
+              <i class="fas fa-cog"></i>
+            </button>
+          </div>
+        </div>
+        <div class="cart-list" id="cartList"></div>
+        <div class="cart-footer">
+          <button class="btn-copy-all" onclick="copyAll()">复制全部</button>
+          <button class="btn-clear" onclick="clearCart()">清空</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
