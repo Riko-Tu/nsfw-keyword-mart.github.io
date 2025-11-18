@@ -233,6 +233,49 @@ function clearCart() {
   showToast('购物车已清空');
 }
 
+
+function initGroups() {
+  // 清理localStorage中可能存在的customGroups数据（废弃功能）
+  try {
+    localStorage.removeItem('customGroups');
+  } catch (e) {
+    // 忽略localStorage错误
+  }
+  
+  fetch('groups.json')
+    .then(r => r.json())
+    .then(data => {
+      groupsRaw = data || {};
+      
+      groups = flattenGroups(groupsRaw);
+
+      // 首次进入词组页时设定默认激活为"第一个一级/第一个二级"
+      if (!groupsActive.initialized) {
+        const first = getFirstCatSub(groupsRaw);
+        groupsActive.category = first.category;
+        groupsActive.sub = first.sub;
+        groupsActive.initialized = true;
+      }
+
+      // 若当前处于词组页，则同步全局 active 并渲染侧栏与列表
+      if (currentTab === 'groups') {
+        activeCategory = groupsActive.category;
+        activeSub = groupsActive.sub;
+        renderCategoryTree(groupsRaw);
+
+        if (activeCategory && activeSub) {
+          filterGroupsByCategory(activeCategory, activeSub);
+        } else {
+          renderGroups(groups);
+        }
+      }
+    })
+    .catch(() => {
+      const grid = document.getElementById('groupGrid');
+      if (grid) grid.innerHTML = '<div style="color:#ccc; padding:20px;">未找到 groups.json 或解析失败</div>';
+    });
+}
+
 // Toast
 function showToast(msg, isError = false) {
   const toast = document.getElementById('toast');
@@ -490,18 +533,18 @@ function renderGroups(data) {
   if (!grid) return;
 
   grid.innerHTML = data.map(g => {
-    const tagsHtml = [g.category, ...(g.tags || [])]
+    const tagsHtml = (g.tags || [])
       .map(t => `<span class="tag-pill">${t}</span>`).join(' ');
     const count = g.items.length;
     const gJson = JSON.stringify(g).replace(/"/g, '&quot;');
 
-    // 生成items列表HTML，展示词和词2
-    const itemsHtml = (g.items || []).map((item, index) => `
-      <div class="group-item" ${index < count - 1 ? 'style="margin-bottom: 8px;"' : ''}>
-        <span class="group-item-word">${item.word}</span>
-        <span class="group-item-meaning">${item.meaning || ''}</span>
+    // 生成items列表HTML，只显示中文词
+    const chineseWords = (g.items || []).map(it => it.meaning || '').filter(Boolean).join(', ');
+    const itemsHtml = `
+      <div class="group-items-line">
+        <div class="group-chinese-words">${chineseWords}</div>
       </div>
-    `).join('');
+    `;
 
     return `
       <div class="card group-card">
@@ -731,5 +774,442 @@ function filterCards() {
       return inTitle || inDesc || inItems;
     });
     renderGroups(filtered);
+  }
+}
+
+// 添加导出购物车为词组JSON格式的函数
+function exportCartAsGroupJSON() {
+  if (cart.length === 0) {
+    showToast('购物车为空，无法导出', true);
+    return;
+  }
+
+  // 提取所有标签，只保留二级标签（如"日常"）
+  const uniqueTags = [...new Set(cart.flatMap(item => {
+    const extractedTags = [];
+    
+    // 尝试多种可能的标签来源，重点提取二级标签
+    const possibleTagProps = [
+      item.subCategory, // 直接尝试subCategory属性（通常是二级标签）
+      item.sub,         // 尝试sub属性
+      item.subItem,     // 尝试subItem属性
+      item.subType,     // 尝试subType属性
+      item.category2,   // 尝试category2属性
+      item.category,    // 尝试category属性，可能包含"动作/日常"格式
+      item.meaning      // 尝试meaning属性，可能包含子类别信息
+    ].filter(tag => tag && typeof tag === 'string' && tag.trim());
+    
+    // 处理每个可能的标签
+    possibleTagProps.forEach(tag => {
+      const trimmedTag = tag.trim();
+      
+      // 重点处理包含"/"分隔符的情况，例如"动作/日常"或"动作 / 日常"
+      if (trimmedTag.includes('/')) {
+        // 分割并清理各部分
+        const parts = trimmedTag.split('/')
+          .map(part => part.trim())
+          .filter(Boolean);
+        
+        // 只添加第二部分作为二级标签（如果存在）
+        if (parts.length > 1) {
+          const secondaryTag = parts[1];
+          if (secondaryTag && !extractedTags.includes(secondaryTag)) {
+            extractedTags.push(secondaryTag);
+          }
+        }
+      } else {
+        // 对于直接的二级标签属性（如subCategory），直接添加
+        // 但需要避免添加一级标签
+        const isSecondaryTagOnly = 
+          (item.subCategory === trimmedTag || 
+           item.sub === trimmedTag || 
+           item.subItem === trimmedTag || 
+           item.subType === trimmedTag || 
+           item.category2 === trimmedTag);
+        
+        if (isSecondaryTagOnly && trimmedTag && !extractedTags.includes(trimmedTag)) {
+          extractedTags.push(trimmedTag);
+        }
+      }
+    });
+    
+    // 确保只返回有效的标签
+    return extractedTags.filter(tag => tag && tag.trim());
+  }))].filter(tag => tag && tag.trim());
+
+  // 创建模态框
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  modal.id = 'exportModal';
+  modal.style.display = 'flex';
+  modal.style.justifyContent = 'center';
+  modal.style.alignItems = 'center';
+  modal.style.position = 'fixed';
+  modal.style.top = '0';
+  modal.style.left = '0';
+  modal.style.width = '100%';
+  modal.style.height = '100%';
+  modal.style.backgroundColor = 'rgba(0,0,0,0.7)';
+  modal.style.zIndex = '1000';
+  
+  // 模态框内容 - 使用与页面一致的暗色主题
+  const modalContent = document.createElement('div');
+  modalContent.className = 'modal-content';
+  modalContent.style.maxWidth = '600px';
+  modalContent.style.width = '90%';
+  modalContent.style.maxHeight = '80vh';
+  modalContent.style.overflow = 'auto';
+  modalContent.style.backgroundColor = '#1e1e1e'; // 与卡片背景色一致
+  modalContent.style.borderRadius = '12px'; // 与卡片圆角一致
+  modalContent.style.boxShadow = '0 6px 16px rgba(0,0,0,0.4)'; // 与卡片阴影一致
+  modalContent.style.color = '#eee'; // 与页面文字颜色一致
+  
+  // 模态框头部 - 与页面主题一致
+  const modalHeader = document.createElement('div');
+  modalHeader.className = 'modal-header';
+  modalHeader.style.padding = '16px';
+  modalHeader.style.borderBottom = '1px solid #333'; // 与页面边框色一致
+  modalHeader.style.display = 'flex';
+  modalHeader.style.justifyContent = 'space-between';
+  modalHeader.style.alignItems = 'center';
+  
+  const modalTitle = document.createElement('h3');
+  modalTitle.textContent = '导出词组JSON';
+  modalTitle.style.margin = '0';
+  modalTitle.style.color = '#eee'; // 与页面文字颜色一致
+  
+  const closeButton = document.createElement('button');
+  closeButton.className = 'modal-close';
+  closeButton.textContent = '×';
+  closeButton.style.background = 'none';
+  closeButton.style.border = 'none';
+  closeButton.style.color = '#e0e0e0';
+  closeButton.style.fontSize = '24px';
+  closeButton.style.cursor = 'pointer';
+  closeButton.style.padding = '5px';
+  closeButton.style.lineHeight = '1';
+  closeButton.onclick = function() {
+    document.body.removeChild(modal);
+  };
+  
+  modalHeader.appendChild(modalTitle);
+  modalHeader.appendChild(closeButton);
+  
+  // 模态框主体 - 与页面主题一致
+  const modalBody = document.createElement('div');
+  modalBody.className = 'modal-body';
+  modalBody.style.padding = '20px'; // 与卡片网格内边距一致
+  
+  // 标题输入框 - 与搜索框样式一致
+  const titleDiv = document.createElement('div');
+  titleDiv.style.marginBottom = '20px';
+  
+  const titleLabel = document.createElement('label');
+  titleLabel.textContent = '标题 (必填)：';
+  titleLabel.style.display = 'block';
+  titleLabel.style.marginBottom = '8px';
+  titleLabel.style.color = '#eee'; // 与页面文字颜色一致
+  
+  const titleInput = document.createElement('input');
+  titleInput.type = 'text';
+  titleInput.className = 'export-input';
+  titleInput.value = `自定义词组 ${new Date().toLocaleString('zh-CN')}`;
+  titleInput.style.width = '100%';
+  titleInput.style.padding = '10px 16px';
+  titleInput.style.boxSizing = 'border-box';
+  titleInput.style.backgroundColor = '#333'; // 与搜索框背景色一致
+  titleInput.style.border = 'none';
+  titleInput.style.borderRadius = '6px'; // 与按钮圆角一致
+  titleInput.style.fontSize = '0.95rem';
+  titleInput.style.color = '#fff'; // 与搜索框文字颜色一致
+  titleInput.style.outline = 'none';
+  
+  titleDiv.appendChild(titleLabel);
+  titleDiv.appendChild(titleInput);
+  
+  // 描述输入框 - 与页面主题一致
+  const descDiv = document.createElement('div');
+  descDiv.style.marginBottom = '20px';
+  
+  const descLabel = document.createElement('label');
+  descLabel.textContent = '描述：';
+  descLabel.style.display = 'block';
+  descLabel.style.marginBottom = '8px';
+  descLabel.style.color = '#eee'; // 与页面文字颜色一致
+  
+  const descInput = document.createElement('textarea');
+  descInput.className = 'export-textarea';
+  descInput.value = '从购物车导出的自定义词组';
+  descInput.style.width = '100%';
+  descInput.style.height = '80px';
+  descInput.style.padding = '10px 16px';
+  descInput.style.boxSizing = 'border-box';
+  descInput.style.resize = 'vertical';
+  descInput.style.backgroundColor = '#333'; // 与搜索框背景色一致
+  descInput.style.border = 'none';
+  descInput.style.borderRadius = '6px'; // 与按钮圆角一致
+  descInput.style.fontSize = '0.95rem';
+  descInput.style.color = '#fff'; // 与搜索框文字颜色一致
+  descInput.style.outline = 'none';
+  
+  descDiv.appendChild(descLabel);
+  descDiv.appendChild(descInput);
+  
+  // 标签显示 - 与页面主题一致，确保正确提取二级标签
+  const tagsDiv = document.createElement('div');
+  tagsDiv.style.marginBottom = '20px';
+  
+  const tagsLabel = document.createElement('label');
+  tagsLabel.textContent = '标签 (自动提取)：';
+  tagsLabel.style.display = 'block';
+  tagsLabel.style.marginBottom = '8px';
+  tagsLabel.style.color = '#eee'; // 与页面文字颜色一致
+  
+  const tagsDisplay = document.createElement('div');
+  tagsDisplay.className = 'tags-display';
+  tagsDisplay.style.minHeight = '30px';
+  tagsDisplay.style.padding = '8px';
+  tagsDisplay.style.backgroundColor = '#1a1a1a'; // 与侧边栏背景色一致
+  tagsDisplay.style.borderRadius = '6px';
+  tagsDisplay.style.flexWrap = 'wrap';
+  tagsDisplay.style.display = 'flex';
+  
+  // 确保tags内容正确显示
+  if (uniqueTags && uniqueTags.length > 0) {
+    uniqueTags.forEach(tag => {
+      if (tag && typeof tag === 'string' && tag.trim()) {
+        const cleanTag = tag.trim();
+        const tagSpan = document.createElement('span');
+        tagSpan.className = 'tag';
+        tagSpan.textContent = cleanTag;
+        tagSpan.style.display = 'inline-flex';
+        tagSpan.style.padding = '4px 10px';
+        tagSpan.style.margin = '4px 4px 4px 0';
+        tagSpan.style.backgroundColor = '#333'; // 与搜索框背景色一致
+        tagSpan.style.borderRadius = '16px';
+        tagSpan.style.fontSize = '0.9rem';
+        tagSpan.style.color = '#ccc'; // 与次要文字颜色一致
+        tagsDisplay.appendChild(tagSpan);
+      }
+    });
+  } else {
+    tagsDisplay.textContent = '无标签';
+    tagsDisplay.style.color = '#999';
+    tagsDisplay.style.fontSize = '0.9rem';
+    tagsDisplay.style.alignItems = 'center';
+    tagsDisplay.style.justifyContent = 'center';
+  }
+  
+  tagsDiv.appendChild(tagsLabel);
+  tagsDiv.appendChild(tagsDisplay);
+  
+  // JSON预览 - 与页面主题一致
+  const jsonDiv = document.createElement('div');
+  jsonDiv.style.marginBottom = '20px';
+  
+  const jsonLabel = document.createElement('label');
+  jsonLabel.textContent = 'JSON预览：';
+  jsonLabel.style.display = 'block';
+  jsonLabel.style.marginBottom = '8px';
+  jsonLabel.style.color = '#eee'; // 与页面文字颜色一致
+  
+  const jsonTextarea = document.createElement('textarea');
+  jsonTextarea.className = 'export-json';
+  jsonTextarea.readOnly = true;
+  jsonTextarea.style.width = '100%';
+  jsonTextarea.style.height = '200px';
+  jsonTextarea.style.padding = '12px';
+  jsonTextarea.style.boxSizing = 'border-box';
+  jsonTextarea.style.fontFamily = 'monospace';
+  jsonTextarea.style.fontSize = '0.9rem';
+  jsonTextarea.style.resize = 'vertical';
+  jsonTextarea.style.backgroundColor = '#121212'; // 与主内容区背景色一致
+  jsonTextarea.style.border = '1px solid #333';
+  jsonTextarea.style.borderRadius = '6px';
+  jsonTextarea.style.color = '#eee'; // 与页面文字颜色一致
+  jsonTextarea.style.outline = 'none';
+  
+  jsonDiv.appendChild(jsonLabel);
+  jsonDiv.appendChild(jsonTextarea);
+  
+  // 添加到模态框主体
+  modalBody.appendChild(titleDiv);
+  modalBody.appendChild(descDiv);
+  modalBody.appendChild(tagsDiv);
+  modalBody.appendChild(jsonDiv);
+  
+  // 模态框底部 - 与页面主题一致，移除保存按钮功能
+  const modalFooter = document.createElement('div');
+  modalFooter.className = 'modal-footer';
+  modalFooter.style.padding = '16px';
+  modalFooter.style.borderTop = '1px solid #333'; // 与页面边框色一致
+  modalFooter.style.display = 'flex';
+  modalFooter.style.justifyContent = 'flex-end';
+  
+  // 复制JSON按钮 - 使用页面按钮样式
+  const copyButton = document.createElement('button');
+  copyButton.textContent = '复制JSON';
+  copyButton.style.padding = '8px 16px';
+  copyButton.style.backgroundColor = '#007bff'; // 与页面按钮颜色一致
+  copyButton.style.color = '#fff';
+  copyButton.style.border = 'none';
+  copyButton.style.borderRadius = '6px'; // 与页面按钮圆角一致
+  copyButton.style.cursor = 'pointer';
+  copyButton.style.fontSize = '0.9rem';
+  copyButton.style.transition = '0.2s';
+  copyButton.onclick = function() {
+    const title = titleInput.value.trim();
+    if (!title) {
+      showToast('请输入标题', true);
+      titleInput.focus();
+      return;
+    }
+    
+    // 创建符合groups.json格式的词组数据
+    // 确保tags字段正确包含购物车内关键词的二级标签和中文关键词
+    const finalTags = Array.isArray(uniqueTags) ? uniqueTags.filter(tag => 
+      typeof tag === 'string' && tag.trim()
+    ) : [];
+    
+    const groupJSON = {
+      "title": title,
+      "description": descInput.value.trim() || '从购物车导出的自定义词组',
+      "tags": finalTags,
+      "items": cart.map(item => ({
+        "词": item.word,
+        "词2": item.meaning || '',
+        "强度": item.strength || 0.7,
+        "说明": item.note || ''
+      }))
+    };
+    
+    // 修改JSON格式化方式，确保tags和items数组在一行展示
+    // 自定义JSON格式化函数，确保tags字段一行展示，items中的每个对象为一行
+    function formatJSON(group) {
+      let result = '{' + '\n';
+      
+      // 添加title字段
+      result += '        "title": "' + group.title.replace(/"/g, '\\"') + '",' + '\n';
+      
+      // 添加description字段
+      result += '        "description": "' + group.description.replace(/"/g, '\\"') + '",' + '\n';
+      
+      // 添加tags字段（一行展示）
+      const tagsString = group.tags.map(tag => '"' + tag.replace(/"/g, '\\"') + '"').join(', ');
+      result += '        "tags": [' + tagsString + '],' + '\n';
+      
+      // 添加items字段
+      result += '        "items": [' + '\n';
+      group.items.forEach((item, idx) => {
+        // 每个对象一行，内部字段不换行
+        result += '          {"词": "' + item["词"].replace(/"/g, '\\"') + '", "词2": "' + 
+                  item["词2"].replace(/"/g, '\\"') + '", "强度": ' + item["强度"] + ', "说明": "' + 
+                  item["说明"].replace(/"/g, '\\"') + '"}' + (idx < group.items.length - 1 ? ',' : '') + '\n';
+      });
+      result += '        ]' + '\n';
+      
+      result += '      }';
+      return result;
+    }
+    
+    const jsonStr = formatJSON(groupJSON);
+    
+    navigator.clipboard.writeText(jsonStr).then(() => {
+      showToast('词组JSON已复制到剪贴板');
+    }).catch(err => {
+      showToast('复制失败，请手动复制', true);
+      jsonTextarea.select();
+    });
+  };
+  
+  // 关闭按钮 - 使用与页面一致的风格
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '关闭';
+  closeBtn.style.marginLeft = '12px';
+  closeBtn.style.padding = '8px 16px';
+  closeBtn.style.backgroundColor = 'transparent'; // 透明背景
+  closeBtn.style.color = '#eee';
+  closeBtn.style.border = '1px solid #333'; // 与页面边框色一致
+  closeBtn.style.borderRadius = '6px'; // 与页面按钮圆角一致
+  closeBtn.style.cursor = 'pointer';
+  closeBtn.style.fontSize = '0.9rem';
+  closeBtn.style.transition = '0.2s';
+  closeBtn.onclick = function() {
+    document.body.removeChild(modal);
+  };
+  
+  modalFooter.appendChild(copyButton);
+  modalFooter.appendChild(closeBtn);
+  
+  // 组装模态框
+  modalContent.appendChild(modalHeader);
+  modalContent.appendChild(modalBody);
+  modalContent.appendChild(modalFooter);
+  modal.appendChild(modalContent);
+  
+  // 添加到页面
+  document.body.appendChild(modal);
+  
+  // 初始化预览
+  updateJsonPreview();
+  
+  // 监听输入变化，更新预览
+  titleInput.addEventListener('input', updateJsonPreview);
+  descInput.addEventListener('input', updateJsonPreview);
+  
+  // 移除点击外部关闭的功能，用户只能通过关闭按钮关闭弹窗
+  
+  // 更新JSON预览的辅助函数
+  function updateJsonPreview() {
+    const title = titleInput.value.trim();
+    const description = descInput.value.trim();
+    
+    // 确保tags字段正确包含购物车内关键词的二级标签和中文关键词
+    // 创建最终的tags数组，确保它是一个数组，并且只包含有效的非空字符串
+    const finalTags = Array.isArray(uniqueTags) ? uniqueTags.filter(tag => 
+      typeof tag === 'string' && tag.trim()
+    ) : [];
+    
+    const groupJSON = {
+      "title": title || `自定义词组 ${new Date().toLocaleString('zh-CN')}`,
+      "description": description || '从购物车导出的自定义词组',
+      "tags": finalTags,
+      "items": cart.map(item => ({
+        "词": item.word,
+        "词2": item.meaning || '',
+        "强度": item.strength || 0.7,
+        "说明": item.note || ''
+      }))
+    };
+    
+    // 自定义JSON格式化函数，确保tags字段一行展示，items中的每个对象为一行
+    function formatJSON(group) {
+      let result = '{' + '\n';
+      
+      // 添加title字段
+      result += '        "title": "' + group.title.replace(/"/g, '\\"') + '",' + '\n';
+      
+      // 添加description字段
+      result += '        "description": "' + group.description.replace(/"/g, '\\"') + '",' + '\n';
+      
+      // 添加tags字段（一行展示）
+      const tagsString = group.tags.map(tag => '"' + tag.replace(/"/g, '\\"') + '"').join(', ');
+      result += '        "tags": [' + tagsString + '],' + '\n';
+      
+      // 添加items字段
+      result += '        "items": [' + '\n';
+      group.items.forEach((item, idx) => {
+        // 每个对象一行，内部字段不换行
+        result += '          {"词": "' + item["词"].replace(/"/g, '\\"') + '", "词2": "' + 
+                  item["词2"].replace(/"/g, '\\"') + '", "强度": ' + item["强度"] + ', "说明": "' + 
+                  item["说明"].replace(/"/g, '\\"') + '"}' + (idx < group.items.length - 1 ? ',' : '') + '\n';
+      });
+      result += '        ]' + '\n';
+      
+      result += '      }';
+      return result;
+    }
+    
+    jsonTextarea.value = formatJSON(groupJSON);
   }
 }

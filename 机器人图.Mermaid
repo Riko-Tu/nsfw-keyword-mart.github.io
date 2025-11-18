@@ -1,0 +1,12 @@
+graph TD
+    A[Telegram 用户] --> B(@aiArt_SecretBot)
+    B --> C{Go 机器人主进程}
+    C --> D[关键词匹配引擎]
+    D --> E[打码图缓存]
+    E --> F[Telegram API 发送]
+    C --> G[Webhook 模式可选]
+    G --> H[Fly.io / 本地服务器]
+    C --> I[日志系统]
+    I --> J[本地文件 / stdout]
+    C --> K[配置热加载]
+    K --> L[环境变量 / JSON]
